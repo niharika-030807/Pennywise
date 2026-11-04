@@ -567,13 +567,31 @@ export default function AuthPage() {
           {/* ----------------- 3. SIGN UP: STEP 2 (OTP VERIFICATION) ----------------- */}
           {view === 'signup_otp' && (
             <div>
-              <div className="text-center mb-5">
+              <div className="text-center mb-4">
                 <div className="w-12 h-12 mx-auto rounded-full bg-[#7800B8]/30 border border-[#FF1493]/40 flex items-center justify-center text-[#FF1493] mb-2">
                   <ShieldCheck size={24} />
                 </div>
                 <h3 className="text-base font-bold text-white">Enter Verification Code</h3>
                 <p className="text-xs text-[#A5A5B8] mt-1">
-                  We've generated a 6-digit verification code for <span className="text-white font-medium">+91 {signupForm.phone}</span>
+                  Verifying mobile number <span className="text-white font-medium">+91 {signupForm.phone}</span>
+                </p>
+              </div>
+
+              {/* Prominent Simulated OTP notice */}
+              <div className="p-3.5 mb-4 rounded-xl bg-[#7800B8]/30 border border-[#FF1493]/50 text-center">
+                <span className="text-[11px] uppercase tracking-wider text-[#FF69B4] font-bold flex items-center justify-center gap-1.5 mb-1">
+                  <Sparkles size={13} /> Simulated OTP Mode (No Twilio SMS Setup)
+                </span>
+                <p className="text-[11px] text-[#A5A5B8] mb-1.5">
+                  Physical cellular SMS requires paid Twilio/Fast2SMS credentials. Your verification code is:
+                </p>
+                <div className="inline-block px-4 py-1.5 rounded-lg bg-[#050509] border border-[#FF1493]/50">
+                  <span className="text-xl font-mono font-black tracking-[0.25em] text-[#FF1493]">
+                    {signupOtp || testOtpInfo?.otp}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">
+                  We have auto-filled this code into the box below. Click "Verify OTP" to finish!
                 </p>
               </div>
 
@@ -669,10 +687,28 @@ export default function AuthPage() {
           {/* ----------------- 5. FORGOT PASSWORD: STEP 2 (OTP) ----------------- */}
           {view === 'forgot_otp' && (
             <div>
-              <div className="text-center mb-5">
+              <div className="text-center mb-4">
                 <h3 className="text-base font-bold text-white">Verify Recovery Code</h3>
                 <p className="text-xs text-[#A5A5B8] mt-1">
-                  Enter the code sent to <span className="text-white">+91 {forgotPhone}</span>
+                  Verifying mobile number <span className="text-white">+91 {forgotPhone}</span>
+                </p>
+              </div>
+
+              {/* Prominent Simulated OTP notice */}
+              <div className="p-3.5 mb-4 rounded-xl bg-[#7800B8]/30 border border-[#FF1493]/50 text-center">
+                <span className="text-[11px] uppercase tracking-wider text-[#FF69B4] font-bold flex items-center justify-center gap-1.5 mb-1">
+                  <Sparkles size={13} /> Simulated OTP Mode (No Twilio SMS Setup)
+                </span>
+                <p className="text-[11px] text-[#A5A5B8] mb-1.5">
+                  Your password recovery code is:
+                </p>
+                <div className="inline-block px-4 py-1.5 rounded-lg bg-[#050509] border border-[#FF1493]/50">
+                  <span className="text-xl font-mono font-black tracking-[0.25em] text-[#FF1493]">
+                    {forgotOtp || testOtpInfo?.otp}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">
+                  Code auto-filled. Click "Verify & Continue" to proceed.
                 </p>
               </div>
 
