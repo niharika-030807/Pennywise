@@ -118,7 +118,7 @@ def get_dashboard_overview(
         Budget.year == now.year
     ).first()
 
-    budget_limit = budget.monthly_limit if budget else 50000.0
+    budget_limit = budget.monthly_limit if budget else 0.0
     budget_spent = monthly_expense
     budget_remaining = max(0.0, budget_limit - budget_spent)
     budget_percentage = min(100.0, round((budget_spent / budget_limit * 100), 1)) if budget_limit > 0 else 0.0

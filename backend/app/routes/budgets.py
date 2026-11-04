@@ -37,27 +37,33 @@ def get_current_budget(
         Budget.year == now.year
     ).first()
 
-    if not budget:
-        # Create default budget for the user
-        budget = Budget(
-            user_id=current_user.id,
-            month=now.month,
-            year=now.year,
-            monthly_limit=50000.0,
-            category_budgets=json.dumps(DEFAULT_CATEGORY_BUDGETS)
-        )
-        db.add(budget)
-        db.commit()
-        db.refresh(budget)
-
-    category_limits: Dict[str, float] = json.loads(budget.category_budgets or "{}")
-
     # Fetch current month expenses
     txs = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
         Transaction.type == "expense",
         Transaction.date.startswith(month_str)
     ).all()
+
+    total_spent = sum(t.amount for t in txs)
+
+    if not budget:
+        return {
+            "id": None,
+            "has_budget": False,
+            "month": now.month,
+            "year": now.year,
+            "monthly_limit": 0.0,
+            "total_spent": round(total_spent, 2),
+            "remaining": 0.0,
+            "progress_percentage": 0.0,
+            "category_progress": [],
+            "alerts": [],
+            "recommendations": [
+                "You haven't set a budget yet. Click 'Modify Budget Targets' above to define your monthly spending cap and category limits."
+            ]
+        }
+
+    category_limits: Dict[str, float] = json.loads(budget.category_budgets or "{}")
 
     total_spent = sum(t.amount for t in txs)
     remaining = max(0.0, budget.monthly_limit - total_spent)

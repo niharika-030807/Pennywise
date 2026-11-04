@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Upload, 
-  Trash2, 
-  Edit3, 
-  ArrowDownRight, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Upload,
+  Trash2,
+  Edit3,
+  ArrowDownRight,
   ArrowUpRight,
   Download,
   Calendar,
@@ -21,7 +21,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Filters & Search
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -32,7 +32,7 @@ export default function Transactions() {
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
-  
+
   // CSV Import State
   const fileInputRef = useRef(null);
   const [importing, setImporting] = useState(false);
@@ -312,9 +312,8 @@ export default function Transactions() {
                       {/* Title & Notes */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isExpense ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isExpense ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'
+                            }`}>
                             {isExpense ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
                           </div>
                           <div>

@@ -78,6 +78,34 @@ def get_monthly_wrap(
         if t.type == "expense":
             prev_cat_expenses[t.category] = prev_cat_expenses.get(t.category, 0.0) + t.amount
 
+    # If no transactions exist for target month
+    if num_transactions == 0:
+        return {
+            "title": f"YOUR {month_name.upper()} MONEY WRAP",
+            "month_name": month_name,
+            "year": target_year,
+            "total_income": 0.0,
+            "total_expenses": 0.0,
+            "total_savings": 0.0,
+            "savings_rate": 0.0,
+            "highest_category": "None",
+            "highest_category_amount": 0.0,
+            "lowest_category": "None",
+            "lowest_category_amount": 0.0,
+            "num_transactions": 0,
+            "average_daily_spend": 0.0,
+            "comparison_with_prev_month": None,
+            "category_breakdown": [],
+            "insights": [
+                "No transactions recorded for this month yet.",
+                "Record your daily expenses and income to unlock personalized insights and category breakdowns.",
+                "Your financial wrap will update automatically as soon as you record entries."
+            ],
+            "personality": "New Voyager 🌱",
+            "badge_desc": "Your financial journey begins here. Add transactions to analyze your spending.",
+            "available_months": unique_months
+        }
+
     category_list = [
         {"name": k, "amount": round(v, 2), "percentage": round((v / expenses * 100), 1) if expenses > 0 else 0}
         for k, v in cat_expenses.items()

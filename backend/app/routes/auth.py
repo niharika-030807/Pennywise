@@ -161,12 +161,6 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.delete(otp_rec)
     db.commit()
 
-    # Seed realistic demonstration data so the dashboard & analytics are immediately rich
-    try:
-        seed_sample_data_for_user(user.id, db)
-    except Exception as e:
-        print("Error seeding sample data:", e)
-
     return {
         "success": True,
         "message": "Account created successfully! You can now log in.",

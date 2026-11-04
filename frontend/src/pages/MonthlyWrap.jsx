@@ -222,33 +222,39 @@ export default function MonthlyWrap() {
           <h4 className="text-base font-bold text-white mb-1">Sector Outflow Breakdown</h4>
           <p className="text-xs text-[#A5A5B8] mb-4">Complete category distribution for {month_name}</p>
 
-          <div className="space-y-3">
-            {(category_breakdown || []).map((cat, i) => (
-              <div key={cat.name} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-white flex items-center gap-2">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+          {(category_breakdown || []).length === 0 ? (
+            <div className="py-6 text-center text-xs text-[#A5A5B8]">
+              No expense categories recorded for {month_name} yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(category_breakdown || []).map((cat, i) => (
+                <div key={cat.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-white flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                      />
+                      {cat.name}
+                    </span>
+                    <span className="text-gray-300 font-semibold">
+                      {formatINR(cat.amount)} ({cat.percentage}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${cat.percentage}%`,
+                        backgroundColor: PIE_COLORS[i % PIE_COLORS.length]
+                      }}
                     />
-                    {cat.name}
-                  </span>
-                  <span className="text-gray-300 font-semibold">
-                    {formatINR(cat.amount)} ({cat.percentage}%)
-                  </span>
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${cat.percentage}%`,
-                      backgroundColor: PIE_COLORS[i % PIE_COLORS.length]
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* SECTION 3: PERSONALIZED BEHAVIORAL INSIGHTS */}

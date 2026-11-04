@@ -25,6 +25,14 @@ def generate_local_financial_reply(user: User, message: str, context: dict) -> s
     budget_limit = context["budget_limit"]
     budget_rem = context["budget_remaining"]
 
+    if context["tx_count"] == 0:
+        return (
+            f"Hello {user.first_name}! You have no transactions recorded for this month yet.\n\n"
+            f"• **Recorded Outflows:** ₹0.00\n"
+            f"• **Recorded Inflows:** ₹0.00\n\n"
+            f"To get started, click the **Add Expense** button at the top right to record your first transaction, or import a CSV statement. Once you add entries, I will automatically analyze your habits and generate personalized advice!"
+        )
+
     # 1. "How much did I spend this month?" / "Total spent"
     if any(k in msg for k in ["how much did i spend", "total spend", "spent this month", "my expenses"]):
         return (

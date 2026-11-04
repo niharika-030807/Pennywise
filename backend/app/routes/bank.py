@@ -63,34 +63,6 @@ def connect_bank_demo(
         last_synced=datetime.utcnow()
     )
     db.add(new_bank)
-
-    # Sync 3 realistic initial transactions from this bank
-    now = datetime.now()
-    demo_txs = [
-        Transaction(
-            user_id=current_user.id,
-            title=f"{bank_name} ATM Cash Withdrawal",
-            amount=2000.0,
-            type="expense",
-            category="Other Expenses",
-            date=(now - timedelta(days=1)).strftime("%Y-%m-%d"),
-            payment_method="Debit Card",
-            description=f"Auto-synced via {bank_name} Account Aggregator"
-        ),
-        Transaction(
-            user_id=current_user.id,
-            title=f"UPI Merchant Payment ({bank_name})",
-            amount=1350.0,
-            type="expense",
-            category="Food and Dining",
-            date=now.strftime("%Y-%m-%d"),
-            payment_method="UPI",
-            description=f"Auto-synced via {bank_name} Account Aggregator"
-        )
-    ]
-    for tx in demo_txs:
-        db.add(tx)
-
     db.commit()
     db.refresh(new_bank)
     return new_bank

@@ -263,52 +263,64 @@ export default function Dashboard({ onOpenAddTransaction, onNavigate }) {
             <p className="text-xs text-[#A5A5B8]">Current month allocation</p>
           </div>
 
-          <div className="h-48 w-full relative flex items-center justify-center my-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data?.category_breakdown || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={75}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {(data?.category_breakdown || []).map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CATEGORY_COLORS[entry.name] || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#080B24', borderColor: '#7800B8', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val) => [formatINR(val)]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] uppercase text-[#A5A5B8] font-bold">Spent</span>
-              <span className="text-sm font-black text-white">{formatINRCompact(data?.monthly_expense)}</span>
-            </div>
-          </div>
-
-          {/* Top 3 Legend items */}
-          <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
-            {(data?.category_breakdown || []).slice(0, 3).map((item, i) => (
-              <div key={item.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: CATEGORY_COLORS[item.name] || DEFAULT_COLORS[i % DEFAULT_COLORS.length] }}
-                  />
-                  <span className="text-[#A5A5B8] truncate max-w-[120px]">{item.name}</span>
-                </div>
-                <span className="font-semibold text-white">{formatINR(item.value)}</span>
+          {(data?.category_breakdown || []).length === 0 ? (
+            <div className="h-48 w-full flex flex-col items-center justify-center text-center p-4 my-auto">
+              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl mb-2 text-gray-500">
+                📊
               </div>
-            ))}
-          </div>
+              <p className="text-xs font-semibold text-white">No Expenses Yet</p>
+              <p className="text-[11px] text-[#A5A5B8] mt-0.5">Category distribution will appear once you record an expense.</p>
+            </div>
+          ) : (
+            <>
+              <div className="h-48 w-full relative flex items-center justify-center my-auto">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data?.category_breakdown || []}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={52}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {(data?.category_breakdown || []).map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={CATEGORY_COLORS[entry.name] || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#080B24', borderColor: '#7800B8', borderRadius: '12px', fontSize: '12px' }}
+                      formatter={(val) => [formatINR(val)]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[10px] uppercase text-[#A5A5B8] font-bold">Spent</span>
+                  <span className="text-sm font-black text-white">{formatINRCompact(data?.monthly_expense)}</span>
+                </div>
+              </div>
+
+              {/* Top 3 Legend items */}
+              <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+                {(data?.category_breakdown || []).slice(0, 3).map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: CATEGORY_COLORS[item.name] || DEFAULT_COLORS[i % DEFAULT_COLORS.length] }}
+                      />
+                      <span className="text-[#A5A5B8] truncate max-w-[120px]">{item.name}</span>
+                    </div>
+                    <span className="font-semibold text-white">{formatINR(item.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -386,7 +398,7 @@ export default function Dashboard({ onOpenAddTransaction, onNavigate }) {
             </div>
             <div className="flex items-center justify-between text-[11px] text-[#A5A5B8] mt-1.5">
               <span>Spent: {formatINR(data?.budget?.spent)}</span>
-              <span>Limit: {formatINR(data?.budget?.limit)}</span>
+              <span>{data?.budget?.limit > 0 ? `Limit: ${formatINR(data?.budget?.limit)}` : 'No Budget Set'}</span>
             </div>
           </div>
         </div>
@@ -408,40 +420,52 @@ export default function Dashboard({ onOpenAddTransaction, onNavigate }) {
               </button>
             </div>
 
-            <div className="space-y-2.5">
-              {(data?.recent_transactions || []).map((tx) => {
-                const isExpense = tx.type === 'expense';
-                return (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-[#050509]/50 border border-white/5 hover:border-[#FF1493]/30 transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                        isExpense ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'
-                      }`}>
-                        {isExpense ? '↓' : '↑'}
+            {(data?.recent_transactions || []).length === 0 ? (
+              <div className="py-8 text-center space-y-2">
+                <div className="w-10 h-10 mx-auto rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg text-gray-400">
+                  📝
+                </div>
+                <p className="text-xs font-semibold text-white">No transactions recorded yet</p>
+                <p className="text-[11px] text-[#A5A5B8] max-w-xs mx-auto">
+                  Your ledger is clean. Click below to record your first expense or income.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {(data?.recent_transactions || []).map((tx) => {
+                  const isExpense = tx.type === 'expense';
+                  return (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#050509]/50 border border-white/5 hover:border-[#FF1493]/30 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                          isExpense ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'
+                        }`}>
+                          {isExpense ? '↓' : '↑'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-white">{tx.title}</p>
+                          <p className="text-[10px] text-[#A5A5B8] flex items-center gap-1.5">
+                            <span>{tx.category}</span>
+                            <span>•</span>
+                            <span>{tx.date}</span>
+                            <span>•</span>
+                            <span className="text-[#FF69B4]">{tx.payment_method}</span>
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-white">{tx.title}</p>
-                        <p className="text-[10px] text-[#A5A5B8] flex items-center gap-1.5">
-                          <span>{tx.category}</span>
-                          <span>•</span>
-                          <span>{tx.date}</span>
-                          <span>•</span>
-                          <span className="text-[#FF69B4]">{tx.payment_method}</span>
+                      <div className="text-right">
+                        <p className={`text-xs font-bold ${isExpense ? 'text-white' : 'text-emerald-400'}`}>
+                          {isExpense ? '-' : '+'}{formatINR(tx.amount)}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-xs font-bold ${isExpense ? 'text-white' : 'text-emerald-400'}`}>
-                        {isExpense ? '-' : '+'}{formatINR(tx.amount)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-3 border-t border-white/10 text-center">

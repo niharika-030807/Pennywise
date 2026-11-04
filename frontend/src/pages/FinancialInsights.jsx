@@ -55,15 +55,16 @@ export default function FinancialInsights() {
   }
 
   // Predictive 30-day forecast simulation based on moving average
-  const avgMonthlyExpense = data?.monthly_expense || 40000;
-  const forecastTrend = [
+  const hasExpenseData = (data?.monthly_expense || 0) > 0;
+  const avgMonthlyExpense = data?.monthly_expense || 0;
+  const forecastTrend = hasExpenseData ? [
     { day: 'Day 1-5', projected: Math.round(avgMonthlyExpense * 0.18), actual: Math.round(avgMonthlyExpense * 0.16) },
     { day: 'Day 6-10', projected: Math.round(avgMonthlyExpense * 0.35), actual: Math.round(avgMonthlyExpense * 0.33) },
     { day: 'Day 11-15', projected: Math.round(avgMonthlyExpense * 0.52), actual: Math.round(avgMonthlyExpense * 0.49) },
     { day: 'Day 16-20', projected: Math.round(avgMonthlyExpense * 0.68), actual: Math.round(avgMonthlyExpense * 0.65) },
     { day: 'Day 21-25', projected: Math.round(avgMonthlyExpense * 0.85), actual: null },
     { day: 'Day 26-30', projected: Math.round(avgMonthlyExpense * 1.0), actual: null },
-  ];
+  ] : [];
 
   return (
     <div className="space-y-6">
@@ -94,9 +95,9 @@ export default function FinancialInsights() {
             <span className="text-xs text-gray-400 font-semibold">Predicted Month-End Spend</span>
             <Zap size={16} className="text-[#FF1493]" />
           </div>
-          <p className="text-2xl font-black text-white">{formatINR(data?.monthly_expense * 1.08)}</p>
+          <p className="text-2xl font-black text-white">{formatINR(hasExpenseData ? data?.monthly_expense * 1.08 : 0)}</p>
           <p className="text-[11px] text-[#A5A5B8] mt-1.5">
-            Projected based on your current 7-day velocity.
+            {hasExpenseData ? 'Projected based on your current 7-day velocity.' : 'Awaiting initial expense entries.'}
           </p>
         </div>
 
@@ -106,10 +107,10 @@ export default function FinancialInsights() {
             <TrendingUp size={16} className="text-emerald-400" />
           </div>
           <p className="text-2xl font-black text-emerald-400">
-            {formatINR((data?.monthly_savings || 25000) * 12)}
+            {formatINR((data?.monthly_savings || 0) * 12)}
           </p>
           <p className="text-[11px] text-[#A5A5B8] mt-1.5">
-            If current net savings velocity is sustained over 12 months.
+            {hasExpenseData ? 'If current net savings velocity is sustained over 12 months.' : 'Calculated automatically as income is logged.'}
           </p>
         </div>
 
@@ -118,9 +119,9 @@ export default function FinancialInsights() {
             <span className="text-xs text-gray-400 font-semibold">Burn Rate Health Score</span>
             <Sparkles size={16} className="text-[#FF69B4]" />
           </div>
-          <p className="text-2xl font-black text-[#FF69B4]">88 / 100</p>
+          <p className="text-2xl font-black text-[#FF69B4]">{hasExpenseData ? '88 / 100' : 'N/A'}</p>
           <p className="text-[11px] text-emerald-400 mt-1.5">
-            Optimal • Capital burn well within income threshold.
+            {hasExpenseData ? 'Optimal • Capital burn well within income threshold.' : 'No data recorded yet.'}
           </p>
         </div>
       </div>
@@ -142,20 +143,30 @@ export default function FinancialInsights() {
           </div>
         </div>
 
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={forecastTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <XAxis dataKey="day" stroke="#A5A5B8" fontSize={11} tickLine={false} />
-              <YAxis stroke="#A5A5B8" fontSize={11} tickLine={false} tickFormatter={(v) => formatINRCompact(v)} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#080B24', borderColor: '#FF1493', borderRadius: '12px', fontSize: '12px' }}
-                formatter={(val) => [formatINR(val)]}
-              />
-              <Line type="monotone" dataKey="actual" stroke="#FF1493" strokeWidth={3} dot={{ r: 4, fill: '#FF1493' }} />
-              <Line type="monotone" dataKey="projected" stroke="#00F0FF" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {forecastTrend.length === 0 ? (
+          <div className="h-64 w-full flex flex-col items-center justify-center text-center p-6">
+            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl mb-2 text-gray-500">
+              📈
+            </div>
+            <p className="text-xs font-semibold text-white">No Expense History for Forecasting</p>
+            <p className="text-[11px] text-[#A5A5B8] mt-0.5">Machine learning burn rate projections will activate once you record transactions.</p>
+          </div>
+        ) : (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={forecastTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis dataKey="day" stroke="#A5A5B8" fontSize={11} tickLine={false} />
+                <YAxis stroke="#A5A5B8" fontSize={11} tickLine={false} tickFormatter={(v) => formatINRCompact(v)} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#080B24', borderColor: '#FF1493', borderRadius: '12px', fontSize: '12px' }}
+                  formatter={(val) => [formatINR(val)]}
+                />
+                <Line type="monotone" dataKey="actual" stroke="#FF1493" strokeWidth={3} dot={{ r: 4, fill: '#FF1493' }} />
+                <Line type="monotone" dataKey="projected" stroke="#00F0FF" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );

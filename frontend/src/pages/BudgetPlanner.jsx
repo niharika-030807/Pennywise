@@ -12,12 +12,25 @@ import {
 import { api } from '../api/client';
 import { formatINR } from '../utils/formatters';
 
+const STANDARD_CATEGORIES = [
+  'Rent and Bills',
+  'Groceries',
+  'Shopping',
+  'Food and Dining',
+  'Transportation',
+  'Entertainment',
+  'Healthcare',
+  'Education',
+  'Personal Expenses',
+  'Other Expenses'
+];
+
 export default function BudgetPlanner() {
   const [budgetData, setBudgetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [monthlyLimitInput, setMonthlyLimitInput] = useState(50000);
+  const [monthlyLimitInput, setMonthlyLimitInput] = useState(0);
   const [categoryInputs, setCategoryInputs] = useState({});
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -26,11 +39,16 @@ export default function BudgetPlanner() {
       setLoading(true);
       const res = await api.getCurrentBudget();
       setBudgetData(res);
-      setMonthlyLimitInput(res.monthly_limit);
+      setMonthlyLimitInput(res.monthly_limit || 0);
       const catMap = {};
-      res.category_progress.forEach(c => {
-        catMap[c.category] = c.limit;
+      STANDARD_CATEGORIES.forEach(cat => {
+        catMap[cat] = 0;
       });
+      if (res.category_progress) {
+        res.category_progress.forEach(c => {
+          catMap[c.category] = c.limit;
+        });
+      }
       setCategoryInputs(catMap);
     } catch (err) {
       console.error('Failed to fetch budget', err);
@@ -144,15 +162,21 @@ export default function BudgetPlanner() {
                 <span className="text-2xl font-bold text-[#FF1493]">₹</span>
                 <input
                   type="number"
+                  placeholder="e.g. 50000"
                   value={monthlyLimitInput}
                   onChange={(e) => setMonthlyLimitInput(e.target.value)}
                   className="px-3 py-1.5 rounded-xl bg-[#050509] border border-[#FF1493] text-xl font-bold text-white w-48 focus:outline-none"
                 />
               </div>
-            ) : (
+            ) : monthly_limit > 0 ? (
               <h2 className="text-3xl font-black text-white mt-1">
                 {formatINR(monthly_limit)}
               </h2>
+            ) : (
+              <div className="mt-1">
+                <p className="text-2xl font-bold text-gray-400">Not Set</p>
+                <p className="text-[11px] text-[#A5A5B8] mt-0.5">Click 'Modify Budget Targets' to establish your spending ceiling.</p>
+              </div>
             )}
           </div>
 
@@ -220,56 +244,68 @@ export default function BudgetPlanner() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(category_progress || []).map((cat) => {
-            const isExceeded = cat.status === 'exceeded';
-            const isWarning = cat.status === 'warning';
-            return (
+          {editMode ? (
+            STANDARD_CATEGORIES.map((catName) => (
               <div
-                key={cat.category}
-                className="p-4 rounded-xl bg-[#050509]/60 border border-white/10 space-y-2.5"
+                key={catName}
+                className="p-4 rounded-xl bg-[#050509]/60 border border-white/10 flex items-center justify-between text-xs"
               >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-white">{cat.category}</span>
-                  {editMode ? (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400 text-xs">Limit: ₹</span>
-                      <input
-                        type="number"
-                        value={categoryInputs[cat.category] || cat.limit}
-                        onChange={(e) => setCategoryInputs({
-                          ...categoryInputs,
-                          [cat.category]: Number(e.target.value)
-                        })}
-                        className="w-24 px-2 py-0.5 rounded bg-[#080B24] border border-[#FF1493]/50 text-white text-xs font-bold"
-                      />
-                    </div>
-                  ) : (
+                <span className="font-semibold text-white">{catName}</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400 text-xs">Limit: ₹</span>
+                  <input
+                    type="number"
+                    value={categoryInputs[catName] !== undefined ? categoryInputs[catName] : 0}
+                    onChange={(e) => setCategoryInputs({
+                      ...categoryInputs,
+                      [catName]: Number(e.target.value)
+                    })}
+                    className="w-24 px-2 py-0.5 rounded bg-[#080B24] border border-[#FF1493]/50 text-white text-xs font-bold"
+                  />
+                </div>
+              </div>
+            ))
+          ) : (category_progress || []).length === 0 ? (
+            <div className="col-span-2 py-8 text-center space-y-2">
+              <p className="text-xs font-semibold text-white">No Category Budgets Set</p>
+              <p className="text-[11px] text-[#A5A5B8]">Click 'Modify Budget Targets' above to allocate limits for Groceries, Dining, Rent, and other sectors.</p>
+            </div>
+          ) : (
+            (category_progress || []).map((cat) => {
+              const isExceeded = cat.status === 'exceeded';
+              const isWarning = cat.status === 'warning';
+              return (
+                <div
+                  key={cat.category}
+                  className="p-4 rounded-xl bg-[#050509]/60 border border-white/10 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white">{cat.category}</span>
                     <span className="text-[#A5A5B8]">
                       Spent: <b className="text-white">{formatINR(cat.spent)}</b> / {formatINR(cat.limit)}
                     </span>
-                  )}
-                </div>
+                  </div>
 
-                {/* Progress bar */}
-                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${isExceeded ? 'bg-rose-500' : isWarning ? 'bg-amber-400' : 'bg-[#FF1493]'
-                      }`}
-                    style={{ width: `${Math.min(100, cat.percentage)}%` }}
-                  />
-                </div>
+                  {/* Progress bar */}
+                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${isExceeded ? 'bg-rose-500' : isWarning ? 'bg-amber-400' : 'bg-[#FF1493]'}`}
+                      style={{ width: `${Math.min(100, cat.percentage)}%` }}
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className={isExceeded ? 'text-rose-400 font-bold' : isWarning ? 'text-amber-400' : 'text-gray-400'}>
-                    {cat.percentage}% Utilized
-                  </span>
-                  <span className="text-emerald-400 font-medium">
-                    {formatINR(cat.remaining)} remaining
-                  </span>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className={isExceeded ? 'text-rose-400 font-bold' : isWarning ? 'text-amber-400' : 'text-gray-400'}>
+                      {cat.percentage}% Utilized
+                    </span>
+                    <span className="text-emerald-400 font-medium">
+                      {formatINR(cat.remaining)} remaining
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
