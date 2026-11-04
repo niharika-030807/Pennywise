@@ -19,39 +19,72 @@ def generate_otp() -> str:
     return f"{random.randint(100000, 999999)}"
 
 def send_sms_or_mock(phone: str, code: str, purpose: str) -> dict:
-    """Send SMS via Twilio if configured, or return simulated test OTP with clear indication."""
-    if settings.has_sms_provider:
+    """Send SMS via Fast2SMS (Indian numbers) or Twilio if configured, or log to server console."""
+    import re
+    clean_phone = re.sub(r'\D', '', phone)
+    if clean_phone.startswith('91') and len(clean_phone) > 10:
+        clean_phone = clean_phone[2:]
+    clean_phone = clean_phone[-10:]
+
+    # 1. Fast2SMS Integration (Indian Gateway - standard for +91)
+    if settings.FAST2SMS_API_KEY:
         try:
-            # Twilio integration if credentials exist
+            import requests
+            url = "https://www.fast2sms.com/dev/bulkV2"
+            querystring = {
+                "authorization": settings.FAST2SMS_API_KEY,
+                "variables_values": code,
+                "route": "otp",
+                "numbers": clean_phone
+            }
+            headers = {'cache-control': "no-cache"}
+            resp = requests.get(url, headers=headers, params=querystring, timeout=5)
+            data = resp.json()
+            if data.get("return"):
+                print(f"[FAST2SMS SENT] Dispatched OTP {code} to +91 {clean_phone}")
+                return {
+                    "success": True,
+                    "message": f"Verification code sent to +91 {clean_phone}",
+                    "is_test_mode": False
+                }
+            else:
+                print(f"[FAST2SMS FAILED] {data.get('message')}")
+        except Exception as e:
+            print(f"[FAST2SMS ERROR] {e}")
+
+    # 2. Twilio Integration
+    if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_PHONE_NUMBER:
+        try:
             from twilio.rest import Client
             client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-            body_text = f"Your Pennywise verification code is {code}. Valid for 10 minutes."
+            target = f"+91{clean_phone}"
             client.messages.create(
-                body=body_text,
+                body=f"Your Pennywise verification code is {code}. Valid for 10 minutes.",
                 from_=settings.TWILIO_PHONE_NUMBER,
-                to=phone
+                to=target
             )
+            print(f"[TWILIO SENT] Dispatched OTP {code} to {target}")
             return {
                 "success": True,
-                "message": f"Verification code sent via SMS to {phone}",
+                "message": f"Verification code sent via SMS to {target}",
                 "is_test_mode": False
             }
         except Exception as e:
-            # Fallback to test mode if SMS delivery fails
-            return {
-                "success": True,
-                "message": f"SMS provider unavailable. Using Test Mode OTP.",
-                "is_test_mode": True,
-                "test_otp": code
-            }
-    else:
-        # Development / Demo test OTP mode
-        return {
-            "success": True,
-            "message": "Demo Test Mode: Use the 6-digit verification code below",
-            "is_test_mode": True,
-            "test_otp": code
-        }
+            print(f"[TWILIO ERROR] {e}")
+
+    # 3. Development / Server Console Log (When no paid SMS gateway API key is configured)
+    print("\n" + "=" * 65)
+    print(f"  [PENNYWISE SMS GATEWAY - CONSOLE DISPATCH]")
+    print(f"  Destination Mobile : +91 {clean_phone}")
+    print(f"  Verification Code  : {code}")
+    print(f"  Status             : Generated securely on server")
+    print("=" * 65 + "\n", flush=True)
+
+    return {
+        "success": True,
+        "message": f"Verification code dispatched to +91 {clean_phone}.",
+        "is_test_mode": True
+    }
 
 @router.post("/send-otp")
 def send_otp(req: SendOTPRequest, db: Session = Depends(get_db)):

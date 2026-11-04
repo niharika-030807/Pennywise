@@ -52,7 +52,6 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [testOtpInfo, setTestOtpInfo] = useState(null);
 
   // Password strength calculator
   const calculatePasswordStrength = (pwd) => {
@@ -93,7 +92,6 @@ export default function AuthPage() {
   const handleSignupStep1 = async (e) => {
     e.preventDefault();
     setError('');
-    setTestOtpInfo(null);
 
     if (!signupForm.firstName.trim() || !signupForm.lastName.trim()) {
       setError('Please provide your full name.');
@@ -122,14 +120,8 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
-      const res = await api.sendOtp(signupForm.phone.trim(), 'signup');
-      if (res.is_test_mode && res.test_otp) {
-        setTestOtpInfo({
-          otp: res.test_otp,
-          message: 'Development SMS Simulation: Use the test verification code below.'
-        });
-        setSignupOtp(res.test_otp); // autofill for user convenience
-      }
+      await api.sendOtp(signupForm.phone.trim(), 'signup');
+      setSignupOtp('');
       setView('signup_otp');
     } catch (err) {
       setError(err.message || 'Failed to send verification code.');
@@ -180,14 +172,8 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await api.sendOtp(forgotPhone.trim(), 'forgot_password');
-      if (res.is_test_mode && res.test_otp) {
-        setTestOtpInfo({
-          otp: res.test_otp,
-          message: 'Development SMS Simulation: Use the test verification code below.'
-        });
-        setForgotOtp(res.test_otp);
-      }
+      await api.sendOtp(forgotPhone.trim(), 'forgot_password');
+      setForgotOtp('');
       setView('forgot_otp');
     } catch (err) {
       setError(err.message || 'Could not find account or send code.');
@@ -285,23 +271,6 @@ export default function AuthPage() {
             <div className="mb-4 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
               <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* Clearly identified Test OTP Mode Banner */}
-          {testOtpInfo && (
-            <div className="mb-4 p-3.5 rounded-xl bg-[#7800B8]/30 border border-[#FF1493]/50 text-white text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-[#FF69B4] mb-1">
-                <Sparkles size={14} />
-                <span>Simulated SMS Provider Mode</span>
-              </div>
-              <p className="text-[#A5A5B8] text-[11px] mb-2">{testOtpInfo.message}</p>
-              <div className="flex items-center justify-between px-3 py-1.5 bg-[#050509] rounded-lg border border-white/10">
-                <span className="text-[11px] text-gray-400">One-Time Password:</span>
-                <span className="text-base font-mono font-bold tracking-widest text-[#FF1493]">
-                  {testOtpInfo.otp}
-                </span>
-              </div>
             </div>
           )}
 
@@ -567,31 +536,13 @@ export default function AuthPage() {
           {/* ----------------- 3. SIGN UP: STEP 2 (OTP VERIFICATION) ----------------- */}
           {view === 'signup_otp' && (
             <div>
-              <div className="text-center mb-4">
-                <div className="w-12 h-12 mx-auto rounded-full bg-[#7800B8]/30 border border-[#FF1493]/40 flex items-center justify-center text-[#FF1493] mb-2">
-                  <ShieldCheck size={24} />
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#7800B8]/30 border border-[#FF1493]/40 flex items-center justify-center text-[#FF1493] mb-3 shadow-glow-pink">
+                  <ShieldCheck size={28} />
                 </div>
-                <h3 className="text-base font-bold text-white">Enter Verification Code</h3>
+                <h3 className="text-lg font-bold text-white">Enter Verification Code</h3>
                 <p className="text-xs text-[#A5A5B8] mt-1">
-                  Verifying mobile number <span className="text-white font-medium">+91 {signupForm.phone}</span>
-                </p>
-              </div>
-
-              {/* Prominent Simulated OTP notice */}
-              <div className="p-3.5 mb-4 rounded-xl bg-[#7800B8]/30 border border-[#FF1493]/50 text-center">
-                <span className="text-[11px] uppercase tracking-wider text-[#FF69B4] font-bold flex items-center justify-center gap-1.5 mb-1">
-                  <Sparkles size={13} /> Simulated OTP Mode (No Twilio SMS Setup)
-                </span>
-                <p className="text-[11px] text-[#A5A5B8] mb-1.5">
-                  Physical cellular SMS requires paid Twilio/Fast2SMS credentials. Your verification code is:
-                </p>
-                <div className="inline-block px-4 py-1.5 rounded-lg bg-[#050509] border border-[#FF1493]/50">
-                  <span className="text-xl font-mono font-black tracking-[0.25em] text-[#FF1493]">
-                    {signupOtp || testOtpInfo?.otp}
-                  </span>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1.5">
-                  We have auto-filled this code into the box below. Click "Verify OTP" to finish!
+                  Enter the 6-digit verification code sent to <span className="text-white font-medium">+91 {signupForm.phone}</span>
                 </p>
               </div>
 
@@ -600,17 +551,17 @@ export default function AuthPage() {
                   <input
                     type="text"
                     maxLength={6}
-                    placeholder="123456"
+                    placeholder="• • • • • •"
                     value={signupOtp}
                     onChange={(e) => setSignupOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3 rounded-xl bg-[#050509]/80 border border-[#FF1493]/50 text-[#FF69B4] focus:outline-none focus:border-[#FF1493]"
+                    className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3.5 rounded-xl bg-[#050509]/80 border border-[#FF1493]/50 text-white placeholder-gray-600 focus:outline-none focus:border-[#FF1493]"
                     required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || signupOtp.length < 6}
                   className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink hover:opacity-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? 'Verifying...' : 'Verify OTP & Complete Sign Up'}
@@ -687,28 +638,13 @@ export default function AuthPage() {
           {/* ----------------- 5. FORGOT PASSWORD: STEP 2 (OTP) ----------------- */}
           {view === 'forgot_otp' && (
             <div>
-              <div className="text-center mb-4">
-                <h3 className="text-base font-bold text-white">Verify Recovery Code</h3>
-                <p className="text-xs text-[#A5A5B8] mt-1">
-                  Verifying mobile number <span className="text-white">+91 {forgotPhone}</span>
-                </p>
-              </div>
-
-              {/* Prominent Simulated OTP notice */}
-              <div className="p-3.5 mb-4 rounded-xl bg-[#7800B8]/30 border border-[#FF1493]/50 text-center">
-                <span className="text-[11px] uppercase tracking-wider text-[#FF69B4] font-bold flex items-center justify-center gap-1.5 mb-1">
-                  <Sparkles size={13} /> Simulated OTP Mode (No Twilio SMS Setup)
-                </span>
-                <p className="text-[11px] text-[#A5A5B8] mb-1.5">
-                  Your password recovery code is:
-                </p>
-                <div className="inline-block px-4 py-1.5 rounded-lg bg-[#050509] border border-[#FF1493]/50">
-                  <span className="text-xl font-mono font-black tracking-[0.25em] text-[#FF1493]">
-                    {forgotOtp || testOtpInfo?.otp}
-                  </span>
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#7800B8]/30 border border-[#FF1493]/40 flex items-center justify-center text-[#FF1493] mb-3 shadow-glow-pink">
+                  <ShieldCheck size={28} />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5">
-                  Code auto-filled. Click "Verify & Continue" to proceed.
+                <h3 className="text-lg font-bold text-white">Verify Recovery Code</h3>
+                <p className="text-xs text-[#A5A5B8] mt-1">
+                  Enter the 6-digit recovery code sent to <span className="text-white font-medium">+91 {forgotPhone}</span>
                 </p>
               </div>
 
@@ -717,17 +653,17 @@ export default function AuthPage() {
                   <input
                     type="text"
                     maxLength={6}
-                    placeholder="123456"
+                    placeholder="• • • • • •"
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
-                    className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3 rounded-xl bg-[#050509]/80 border border-[#FF1493]/50 text-[#FF69B4] focus:outline-none focus:border-[#FF1493]"
+                    className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3.5 rounded-xl bg-[#050509]/80 border border-[#FF1493]/50 text-white placeholder-gray-600 focus:outline-none focus:border-[#FF1493]"
                     required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || forgotOtp.length < 6}
                   className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink hover:opacity-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? 'Verifying...' : 'Verify & Continue'}
