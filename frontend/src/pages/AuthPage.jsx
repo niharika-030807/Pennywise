@@ -9,12 +9,12 @@ import {
   User as UserIcon, 
   ArrowRight, 
   CheckCircle2, 
-  AlertCircle,
-  Sparkles
+  AlertCircle
 } from 'lucide-react';
-import { api } from '../api/client';
+import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
-import NetworkBackground from '../components/NetworkBackground';
+import NetworkBackground from '../components/layout/NetworkBackground';
+import { calculatePasswordStrength } from '../utils/validation';
 
 export default function AuthPage() {
   const { login } = useAuth();
@@ -52,21 +52,6 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-
-  // Password strength calculator
-  const calculatePasswordStrength = (pwd) => {
-    if (!pwd) return { score: 0, label: 'None', color: 'bg-gray-600' };
-    let score = 0;
-    if (pwd.length >= 6) score += 1;
-    if (pwd.length >= 10) score += 1;
-    if (/[A-Z]/.test(pwd)) score += 1;
-    if (/[0-9]/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-
-    if (score <= 2) return { score: 1, label: 'Weak', color: 'bg-rose-500' };
-    if (score <= 4) return { score: 2, label: 'Medium', color: 'bg-amber-500' };
-    return { score: 3, label: 'Strong', color: 'bg-emerald-500' };
-  };
 
   const strength = calculatePasswordStrength(signupForm.password);
 

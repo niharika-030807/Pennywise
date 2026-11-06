@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   Wallet, 
   ArrowUpRight, 
   ArrowDownRight, 
   PiggyBank, 
-  TrendingUp, 
   CreditCard, 
-  Calendar,
-  AlertCircle,
-  PlusCircle,
-  CheckCircle2,
-  ChevronRight
+  Calendar, 
+  PlusCircle, 
+  ChevronRight,
+  TrendingUp,
+  Receipt
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -21,465 +20,390 @@ import {
   Tooltip, 
   PieChart, 
   Pie, 
-  Cell, 
-  BarChart, 
-  Bar 
+  Cell 
 } from 'recharts';
-import { api } from '../api/client';
+import { useDashboard } from '../hooks/useDashboard';
 import { formatINR, formatINRCompact } from '../utils/formatters';
+import { TRANSACTION_CATEGORIES } from '../utils/constants';
+import StatCard from '../components/common/StatCard';
+import Card from '../components/common/Card';
+import Button from '../components/common/Button';
+import Badge from '../components/common/Badge';
+import EmptyState from '../components/common/EmptyState';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
-const CATEGORY_COLORS = {
-  'Rent and Bills': '#7800B8',
-  'Shopping': '#FF1493',
-  'Groceries': '#00F0FF',
-  'Food and Dining': '#FF8C00',
-  'Transportation': '#9D00FF',
-  'Entertainment': '#FF69B4',
-  'Healthcare': '#00E676',
-  'Education': '#FFD600',
-  'Personal Expenses': '#E040FB',
-  'Other Expenses': '#7C4DFF'
-};
+const CATEGORY_COLOR_MAP = TRANSACTION_CATEGORIES.reduce((acc, curr) => {
+  acc[curr.id] = curr.color;
+  return acc;
+}, {});
 
-const DEFAULT_COLORS = ['#FF1493', '#7800B8', '#00F0FF', '#FF8C00', '#00E676', '#FFD600', '#FF69B4', '#9D00FF'];
+const DEFAULT_CHART_COLORS = ['#FF1493', '#7800B8', '#00F0FF', '#FF8C00', '#00E676', '#FFD600', '#FF69B4', '#9D00FF'];
 
 export default function Dashboard({ onOpenAddTransaction, onNavigate }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [expensePeriod, setExpensePeriod] = useState('monthly'); // 'daily' | 'weekly' | 'monthly'
+  const {
+    data,
+    loading,
+    error,
+    expensePeriod,
+    setExpensePeriod,
+    displayExpense,
+    periodLabel,
+    savingsRate,
+    refetch
+  } = useDashboard();
 
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      const res = await api.getDashboardOverview();
-      setData(res);
-      setError('');
-    } catch (err) {
-      setError(err.message || 'Failed to load dashboard metrics.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
-
-  if (loading && !data) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#FF1493] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs uppercase tracking-widest text-[#FF69B4] font-semibold">
-            Aggregating Financial Telemetry...
-          </p>
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <LoadingSpinner size="lg" message="Synchronizing Financial Telemetry..." />;
   }
 
-  if (error) {
-    return (
-      <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300">
-        <p className="font-semibold">Failed to load dashboard</p>
-        <p className="text-xs mt-1">{error}</p>
-        <button
-          onClick={fetchDashboard}
-          className="mt-3 px-4 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-semibold"
-        >
-          Retry
-        </button>
-      </div>
-    );
+  if (error && !data) {
+    return <ErrorMessage message={error} onRetry={refetch} className="my-8" />;
   }
 
-  // Determine expense bar data based on period toggle
-  let expenseChartData = [];
-  if (expensePeriod === 'daily') {
-    expenseChartData = data?.daily_expenses?.map(d => ({ name: d.day, amount: d.amount })) || [];
-  } else if (expensePeriod === 'weekly') {
-    expenseChartData = data?.weekly_expenses?.map(w => ({ name: w.week, amount: w.amount })) || [];
-  } else {
-    expenseChartData = data?.trends?.map(t => ({ name: t.month, amount: t.expense })) || [];
-  }
+  const {
+    user_name,
+    first_name,
+    total_balance = 0,
+    monthly_income = 0,
+    total_savings = 0,
+    recent_transactions = [],
+    category_spending = [],
+    cashflow_trend = [],
+    budget_progress
+  } = data || {};
 
   return (
-    <div className="space-y-6">
-      {/* Personalized Greeting Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl glass-panel relative overflow-hidden">
-        {/* Glow background accent */}
-        <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#FF1493]/20 rounded-full blur-2xl pointer-events-none" />
-
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* ---------------- 1. DASHBOARD GREETING & QUICK ACTIONS ---------------- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
         <div>
-          <span className="text-xs uppercase tracking-widest text-[#FF69B4] font-bold">
-            Executive Financial Pulse
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-0.5">
-            Welcome back, {data?.first_name || 'Investor'}! 👋
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            Welcome back, <span className="bg-gradient-to-r from-white via-[#FF69B4] to-[#FF1493] bg-clip-text text-transparent">{first_name || user_name || 'User'}</span>!
           </h1>
-          <p className="text-xs text-[#A5A5B8] mt-1">
-            Here is your live personal ledger, active banking balances, and capital flow.
+          <p className="text-xs sm:text-sm text-[#A5A5B8] mt-1">
+            Real-time financial telemetry, cashflow analytics, and predictive budgeting.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onNavigate?.('wrap')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#101536] border border-[#FF1493]/40 text-[#FF69B4] hover:bg-[#FF1493]/10 transition-colors"
-          >
-            <span>View Money Wrap</span>
-            <ChevronRight size={14} />
-          </button>
-          <button
-            onClick={onOpenAddTransaction}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink hover:opacity-95 transition-all"
-          >
-            <PlusCircle size={15} />
-            <span>Record Transaction</span>
-          </button>
+        <div className="flex items-center gap-2.5">
+          <Button variant="outline" size="sm" onClick={() => onNavigate('wrap')}>
+            Monthly Wrap
+          </Button>
+          <Button variant="primary" size="sm" onClick={onOpenAddTransaction} icon={PlusCircle}>
+            Add Expense
+          </Button>
         </div>
       </div>
 
-      {/* 4 STAT OVERVIEW CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Balance */}
-        <div className="glass-panel glass-card-hover p-5 rounded-2xl relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-[#A5A5B8]">Total Net Balance</span>
-            <div className="w-9 h-9 rounded-xl bg-[#7800B8]/30 border border-[#7800B8]/60 flex items-center justify-center text-[#FF69B4]">
-              <Wallet size={18} />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-white tracking-tight">
-            {formatINR(data?.total_balance)}
-          </div>
-          <div className="flex items-center gap-1.5 mt-2 text-[11px] text-emerald-400 font-semibold">
-            <TrendingUp size={13} />
-            <span>Active across all accounts</span>
-          </div>
-        </div>
+      {/* ---------------- 2. FINANCIAL OVERVIEW METRIC CARDS ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* Total Balance */}
+        <StatCard
+          title="Total Balance"
+          value={total_balance}
+          icon={Wallet}
+          subtitle="Aggregated Net Worth"
+          color="from-[#7800B8] to-[#FF1493]"
+        />
 
-        {/* Card 2: Monthly Income */}
-        <div className="glass-panel glass-card-hover p-5 rounded-2xl relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-[#A5A5B8]">Monthly Inflow</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-              <ArrowDownRight size={18} />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-white tracking-tight">
-            {formatINR(data?.monthly_income)}
-          </div>
-          <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-emerald-400">
-            <span>+{data?.income_change_pct || 0}% vs last month</span>
-          </div>
-        </div>
+        {/* Monthly Income */}
+        <StatCard
+          title="Monthly Income"
+          value={monthly_income}
+          icon={ArrowUpRight}
+          subtitle="Received this month"
+          color="from-emerald-500 to-teal-400"
+        />
 
-        {/* Card 3: Monthly Expenses */}
-        <div className="glass-panel glass-card-hover p-5 rounded-2xl relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-[#A5A5B8]">Monthly Outflow</span>
-            <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
-              <ArrowUpRight size={18} />
+        {/* Expenses Overview with Period Selector */}
+        <Card hover className="relative overflow-hidden group">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-[#A5A5B8] tracking-wide uppercase">
+                  {periodLabel}
+                </p>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
+                {formatINR(displayExpense)}
+              </h3>
+            </div>
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500/20 to-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+              <ArrowDownRight size={22} />
             </div>
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">
-            {formatINR(data?.monthly_expense)}
-          </div>
-          <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-[#FF69B4]">
-            <span>{data?.expense_change_pct >= 0 ? `+${data?.expense_change_pct}%` : `${data?.expense_change_pct}%`} vs last month</span>
-          </div>
-        </div>
 
-        {/* Card 4: Total Savings */}
-        <div className="glass-panel glass-card-hover p-5 rounded-2xl relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-[#A5A5B8]">Net Monthly Savings</span>
-            <div className="w-9 h-9 rounded-xl bg-[#D900A8]/25 border border-[#FF1493]/40 flex items-center justify-center text-[#FF1493]">
-              <PiggyBank size={18} />
-            </div>
+          {/* Daily / Weekly / Monthly Switcher */}
+          <div className="mt-3.5 flex items-center gap-1.5 p-1 rounded-lg bg-[#050509]/60 border border-white/5 text-[11px] font-semibold">
+            {['daily', 'weekly', 'monthly'].map((period) => (
+              <button
+                key={period}
+                type="button"
+                onClick={() => setExpensePeriod(period)}
+                className={`flex-1 py-1 rounded-md capitalize transition-all ${
+                  expensePeriod === period
+                    ? 'bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-sm'
+                    : 'text-[#A5A5B8] hover:text-white'
+                }`}
+              >
+                {period}
+              </button>
+            ))}
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">
-            {formatINR(data?.monthly_savings)}
-          </div>
-          <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-[#FF69B4]">
-            <span>{data?.monthly_income > 0 ? `${Math.round((data.monthly_savings / data.monthly_income) * 100)}% Savings Rate` : 'No income registered'}</span>
-          </div>
-        </div>
+        </Card>
+
+        {/* Total Savings */}
+        <StatCard
+          title="Total Savings"
+          value={total_savings}
+          icon={PiggyBank}
+          trend={savingsRate}
+          trendLabel="Savings Rate"
+          color="from-[#D900A8] to-[#FF1493]"
+        />
       </div>
 
-      {/* SECTION B & C: CHARTS GRID */}
+      {/* ---------------- 3. INTERACTIVE VISUALIZATIONS ---------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Income vs Expenses Trend Area Chart (Span 2) */}
-        <div className="lg:col-span-2 glass-panel p-5 rounded-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        {/* Income vs Expenses Cashflow Area Chart */}
+        <Card className="lg:col-span-2 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span>Income vs Expenses Velocity</span>
+                <TrendingUp size={18} className="text-[#FF1493]" />
+                Cashflow Dynamics (Income vs Expenses)
               </h3>
-              <p className="text-xs text-[#A5A5B8]">6-month capital inflow & burn telemetry</p>
+              <p className="text-xs text-[#A5A5B8]">Daily inflow and outflow telemetry</p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-semibold">
-              <span className="flex items-center gap-1.5 text-emerald-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Income
-              </span>
-              <span className="flex items-center gap-1.5 text-[#FF1493]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF1493]" /> Expenses
-              </span>
-            </div>
+            <span className="text-[11px] font-semibold text-[#FF69B4] px-2.5 py-1 rounded-full bg-[#7800B8]/20 border border-[#FF1493]/30">
+              Last 14 Days
+            </span>
           </div>
 
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data?.trends || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00E676" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#00E676" stopOpacity={0.0} />
-                  </linearGradient>
-                  <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FF1493" stopOpacity={0.45} />
-                    <stop offset="95%" stopColor="#FF1493" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" stroke="#A5A5B8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#A5A5B8" fontSize={11} tickLine={false} tickFormatter={(v) => formatINRCompact(v)} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#080B24', borderColor: '#FF1493', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val) => [formatINR(val)]}
-                />
-                <Area type="monotone" dataKey="income" name="Income" stroke="#00E676" strokeWidth={2.5} fillOpacity={1} fill="url(#incomeGrad)" />
-                <Area type="monotone" dataKey="expense" name="Expense" stroke="#FF1493" strokeWidth={2.5} fillOpacity={1} fill="url(#expenseGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {cashflow_trend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cashflow_trend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00E676" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#00E676" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF1493" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#FF1493" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" stroke="#606078" fontSize={11} tickFormatter={(d) => d.slice(8)} />
+                  <YAxis stroke="#606078" fontSize={11} tickFormatter={(v) => formatINRCompact(v)} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#080B24',
+                      borderColor: 'rgba(255, 20, 147, 0.4)',
+                      borderRadius: '12px',
+                      fontSize: '12px'
+                    }}
+                    formatter={(val) => [formatINR(val)]}
+                  />
+                  <Area type="monotone" dataKey="income" name="Income" stroke="#00E676" strokeWidth={2} fillOpacity={1} fill="url(#incomeGrad)" />
+                  <Area type="monotone" dataKey="expense" name="Expense" stroke="#FF1493" strokeWidth={2} fillOpacity={1} fill="url(#expenseGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState
+                icon={Calendar}
+                title="No Cashflow Data Yet"
+                description="Record income and expenses to view the cashflow telemetry curves."
+                className="h-full border-0"
+              />
+            )}
           </div>
-        </div>
+        </Card>
 
         {/* Spending Categories Donut Chart */}
-        <div className="glass-panel p-5 rounded-2xl flex flex-col">
-          <div className="mb-2">
-            <h3 className="text-base font-bold text-white">Spending Categories</h3>
-            <p className="text-xs text-[#A5A5B8]">Current month allocation</p>
+        <Card className="flex flex-col justify-between">
+          <div className="mb-4">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <CreditCard size={18} className="text-[#FF69B4]" />
+              Spending Distribution
+            </h3>
+            <p className="text-xs text-[#A5A5B8]">Expenses grouped by category</p>
           </div>
 
-          {(data?.category_breakdown || []).length === 0 ? (
-            <div className="h-48 w-full flex flex-col items-center justify-center text-center p-4 my-auto">
-              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl mb-2 text-gray-500">
-                📊
-              </div>
-              <p className="text-xs font-semibold text-white">No Expenses Yet</p>
-              <p className="text-[11px] text-[#A5A5B8] mt-0.5">Category distribution will appear once you record an expense.</p>
-            </div>
-          ) : (
-            <>
-              <div className="h-48 w-full relative flex items-center justify-center my-auto">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={data?.category_breakdown || []}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={52}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {(data?.category_breakdown || []).map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CATEGORY_COLORS[entry.name] || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#080B24', borderColor: '#7800B8', borderRadius: '12px', fontSize: '12px' }}
-                      formatter={(val) => [formatINR(val)]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[10px] uppercase text-[#A5A5B8] font-bold">Spent</span>
-                  <span className="text-sm font-black text-white">{formatINRCompact(data?.monthly_expense)}</span>
-                </div>
-              </div>
-
-              {/* Top 3 Legend items */}
-              <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
-                {(data?.category_breakdown || []).slice(0, 3).map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: CATEGORY_COLORS[item.name] || DEFAULT_COLORS[i % DEFAULT_COLORS.length] }}
+          <div className="h-52 w-full flex items-center justify-center">
+            {category_spending.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={category_spending}
+                    dataKey="amount"
+                    nameKey="category"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={3}
+                  >
+                    {category_spending.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={CATEGORY_COLOR_MAP[entry.category] || DEFAULT_CHART_COLORS[index % DEFAULT_CHART_COLORS.length]}
                       />
-                      <span className="text-[#A5A5B8] truncate max-w-[120px]">{item.name}</span>
-                    </div>
-                    <span className="font-semibold text-white">{formatINR(item.value)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* SECTION A, D & E: EXPENSE OVERVIEW TOGGLE & RECENT TRANSACTIONS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* A. Expense Overview with Daily/Weekly/Monthly Toggle (1 col) */}
-        <div className="glass-panel p-5 rounded-2xl flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-base font-bold text-white">Expense Overview</h3>
-              <p className="text-xs text-[#A5A5B8]">Filtered spend distribution</p>
-            </div>
-            {/* Period Toggle */}
-            <div className="flex p-0.5 rounded-lg bg-[#050509] border border-white/10 text-[11px] font-semibold">
-              <button
-                onClick={() => setExpensePeriod('daily')}
-                className={`px-2 py-1 rounded-md transition-all ${
-                  expensePeriod === 'daily' ? 'bg-[#FF1493] text-white shadow-sm' : 'text-[#A5A5B8] hover:text-white'
-                }`}
-              >
-                Daily
-              </button>
-              <button
-                onClick={() => setExpensePeriod('weekly')}
-                className={`px-2 py-1 rounded-md transition-all ${
-                  expensePeriod === 'weekly' ? 'bg-[#FF1493] text-white shadow-sm' : 'text-[#A5A5B8] hover:text-white'
-                }`}
-              >
-                Weekly
-              </button>
-              <button
-                onClick={() => setExpensePeriod('monthly')}
-                className={`px-2 py-1 rounded-md transition-all ${
-                  expensePeriod === 'monthly' ? 'bg-[#FF1493] text-white shadow-sm' : 'text-[#A5A5B8] hover:text-white'
-                }`}
-              >
-                Monthly
-              </button>
-            </div>
-          </div>
-
-          <div className="h-44 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={expenseChartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                <XAxis dataKey="name" stroke="#A5A5B8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#A5A5B8" fontSize={11} tickLine={false} tickFormatter={(v) => formatINRCompact(v)} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#080B24', borderColor: '#FF1493', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val) => [formatINR(val), 'Expense']}
-                />
-                <Bar dataKey="amount" fill="#FF1493" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* E. Budget Progress Bar */}
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="font-semibold text-white">Monthly Budget Cap</span>
-              <span className="text-[#FF69B4] font-bold">
-                {data?.budget?.percentage || 0}% Used
-              </span>
-            </div>
-            <div className="w-full h-2.5 bg-[#050509] rounded-full overflow-hidden p-0.5 border border-white/10">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  (data?.budget?.percentage || 0) >= 100
-                    ? 'bg-rose-500 shadow-glow-pink'
-                    : (data?.budget?.percentage || 0) >= 80
-                    ? 'bg-amber-400'
-                    : 'bg-gradient-to-r from-[#7800B8] to-[#FF1493]'
-                }`}
-                style={{ width: `${Math.min(100, data?.budget?.percentage || 0)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#A5A5B8] mt-1.5">
-              <span>Spent: {formatINR(data?.budget?.spent)}</span>
-              <span>{data?.budget?.limit > 0 ? `Limit: ${formatINR(data?.budget?.limit)}` : 'No Budget Set'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* D. Recent Transactions (2 cols) */}
-        <div className="lg:col-span-2 glass-panel p-5 rounded-2xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Recent Transactions</h3>
-                <p className="text-xs text-[#A5A5B8]">Latest ledger activity</p>
-              </div>
-              <button
-                onClick={() => onNavigate?.('transactions')}
-                className="text-xs font-semibold text-[#FF69B4] hover:underline flex items-center gap-1"
-              >
-                <span>View Full Ledger</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-
-            {(data?.recent_transactions || []).length === 0 ? (
-              <div className="py-8 text-center space-y-2">
-                <div className="w-10 h-10 mx-auto rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg text-gray-400">
-                  📝
-                </div>
-                <p className="text-xs font-semibold text-white">No transactions recorded yet</p>
-                <p className="text-[11px] text-[#A5A5B8] max-w-xs mx-auto">
-                  Your ledger is clean. Click below to record your first expense or income.
-                </p>
-              </div>
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#080B24',
+                      borderColor: 'rgba(255, 20, 147, 0.4)',
+                      borderRadius: '12px',
+                      fontSize: '12px'
+                    }}
+                    formatter={(val) => [formatINR(val)]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             ) : (
-              <div className="space-y-2.5">
-                {(data?.recent_transactions || []).map((tx) => {
-                  const isExpense = tx.type === 'expense';
-                  return (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-[#050509]/50 border border-white/5 hover:border-[#FF1493]/30 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                          isExpense ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'
-                        }`}>
-                          {isExpense ? '↓' : '↑'}
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-white">{tx.title}</p>
-                          <p className="text-[10px] text-[#A5A5B8] flex items-center gap-1.5">
-                            <span>{tx.category}</span>
-                            <span>•</span>
-                            <span>{tx.date}</span>
-                            <span>•</span>
-                            <span className="text-[#FF69B4]">{tx.payment_method}</span>
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-xs font-bold ${isExpense ? 'text-white' : 'text-emerald-400'}`}>
-                          {isExpense ? '-' : '+'}{formatINR(tx.amount)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="text-center text-xs text-[#A5A5B8]">
+                No recorded expenses this month.
               </div>
             )}
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/10 text-center">
+          {/* Top 3 Category Breakdown Pills */}
+          <div className="space-y-2 mt-2">
+            {category_spending.slice(0, 3).map((cat, i) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: CATEGORY_COLOR_MAP[cat.category] || DEFAULT_CHART_COLORS[i] }}
+                  />
+                  <span className="text-[#A5A5B8]">{cat.category}</span>
+                </div>
+                <span className="font-semibold text-white">{formatINR(cat.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* ---------------- 4. BUDGET PROGRESS & RECENT TRANSACTIONS ---------------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Budget Progress Indicator */}
+        <Card className="flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-white">Monthly Budget Progress</h3>
+              <button
+                onClick={() => onNavigate('budgets')}
+                className="text-xs text-[#FF69B4] hover:underline flex items-center gap-1 font-semibold"
+              >
+                Manage <ChevronRight size={14} />
+              </button>
+            </div>
+
+            {budget_progress?.has_budget ? (
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-[#A5A5B8] mb-1.5 font-medium">
+                    <span>{formatINR(budget_progress.total_spent)} spent</span>
+                    <span>Cap: {formatINR(budget_progress.monthly_limit)}</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full bg-[#101536] overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        budget_progress.percentage >= 100
+                          ? 'bg-rose-500 shadow-glow-pink'
+                          : budget_progress.percentage >= 80
+                          ? 'bg-amber-500'
+                          : 'bg-gradient-to-r from-[#7800B8] to-[#FF1493]'
+                      }`}
+                      style={{ width: `${Math.min(100, budget_progress.percentage)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#101536]/80 border border-white/5 flex items-center justify-between text-xs">
+                  <span className="text-[#A5A5B8]">Remaining Budget:</span>
+                  <span className="font-bold text-emerald-400">
+                    {formatINR(budget_progress.remaining)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                title="No Budget Cap Configured"
+                description="Set monthly spending limits to prevent overspending and track burn rate."
+                actionLabel="Set Budget"
+                onAction={() => onNavigate('budgets')}
+                className="py-6 border-0"
+              />
+            )}
+          </div>
+        </Card>
+
+        {/* Recent Transactions Table */}
+        <Card className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Receipt size={18} className="text-[#FF1493]" />
+              Recent Transactions
+            </h3>
             <button
-              onClick={onOpenAddTransaction}
-              className="text-xs font-bold text-[#FF1493] hover:text-[#FF69B4] inline-flex items-center gap-1.5"
+              onClick={() => onNavigate('transactions')}
+              className="text-xs text-[#FF69B4] hover:underline flex items-center gap-1 font-semibold"
             >
-              <PlusCircle size={14} />
-              <span>Record a new expense or income</span>
+              View All <ChevronRight size={14} />
             </button>
           </div>
-        </div>
+
+          {recent_transactions.length > 0 ? (
+            <div className="divide-y divide-white/5">
+              {recent_transactions.map((tx) => (
+                <div key={tx.id} className="py-3 flex items-center justify-between hover:bg-white/5 px-2 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+                        tx.type === 'income'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-[#7800B8]/30 text-[#FF69B4] border border-[#FF1493]/30'
+                      }`}
+                    >
+                      {tx.type === 'income' ? '+' : '-'}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-white">{tx.title}</h4>
+                      <p className="text-[11px] text-[#A5A5B8] flex items-center gap-2 mt-0.5">
+                        <span>{tx.category}</span>
+                        <span>•</span>
+                        <span>{tx.date}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-sm font-bold font-mono ${
+                      tx.type === 'income' ? 'text-emerald-400' : 'text-white'
+                    }`}
+                  >
+                    {tx.type === 'income' ? '+' : '-'}
+                    {formatINR(tx.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No Recorded Transactions"
+              description="Start tracking your cashflow by clicking 'Add Expense' above."
+              actionLabel="Add Transaction"
+              onAction={onOpenAddTransaction}
+              className="py-8 border-0"
+            />
+          )}
+        </Card>
       </div>
     </div>
   );
 }
-

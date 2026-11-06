@@ -20,10 +20,15 @@ def test_full_fintech_lifecycle():
     test_email = f"test.{test_phone}@example.com"
     res = client.post("/api/auth/send-otp", json={"phone": test_phone, "purpose": "signup"})
     assert res.status_code == 200, res.text
-    otp_data = res.json()
-    assert otp_data["is_test_mode"] is True
-    test_code = otp_data["test_otp"]
-    print(f"[PASS] OTP generated: {test_code} (Test Mode: {otp_data['is_test_mode']})")
+    
+    # Retrieve the OTP record securely from the test DB session
+    from app.core.database import SessionLocal
+    from app.models.entities import OTPRecord
+    with SessionLocal() as db_session:
+        otp_rec = db_session.query(OTPRecord).filter(OTPRecord.phone == test_phone).order_by(OTPRecord.id.desc()).first()
+        assert otp_rec is not None
+        test_code = otp_rec.code
+    print(f"[PASS] OTP dispatched securely: {test_code}")
 
     # 3. Verify OTP
     res = client.post("/api/auth/verify-otp", json={"phone": test_phone, "code": test_code, "purpose": "signup"})

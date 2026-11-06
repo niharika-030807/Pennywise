@@ -1,300 +1,220 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Building2,
   ShieldCheck,
   Plus,
   CheckCircle2,
-  RefreshCw,
-  ExternalLink,
   Lock,
-  AlertCircle,
   Unlink
 } from 'lucide-react';
-import { api } from '../api/client';
-import { useAuth } from '../context/AuthContext';
+import { useBankAccounts } from '../hooks/useBankAccounts';
 import { formatINR } from '../utils/formatters';
-import Modal from '../components/Modal';
-
-const POPULAR_BANKS = [
-  { id: 'hdfc', name: 'HDFC Bank', code: 'HDFC', badge: 'Fast Sync', logo: '🏦' },
-  { id: 'sbi', name: 'State Bank of India', code: 'SBI', badge: 'Public Sector', logo: '🏛️' },
-  { id: 'icici', name: 'ICICI Bank', code: 'ICICI', badge: 'Instant Sync', logo: '💳' },
-  { id: 'axis', name: 'Axis Bank', code: 'AXIS', badge: 'AA Ready', logo: '📈' },
-  { id: 'kotak', name: 'Kotak Mahindra Bank', code: 'KOTAK', badge: '811 Verified', logo: '💼' },
-  { id: 'pnb', name: 'Punjab National Bank', code: 'PNB', badge: 'National', logo: '🏪' }
-];
+import Button from '../components/common/Button';
+import Card from '../components/common/Card';
+import Badge from '../components/common/Badge';
+import EmptyState from '../components/common/EmptyState';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorMessage from '../components/common/ErrorMessage';
+import Modal from '../components/modals/Modal';
 
 export default function BankAccounts() {
-  const { user } = useAuth();
-  const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [selectedBank, setSelectedBank] = useState(POPULAR_BANKS[0].name);
-  const [connecting, setConnecting] = useState(false);
-  const [consentStep, setConsentStep] = useState(1); // 1: Select Bank, 2: AA Consent, 3: Success
+  const {
+    accounts,
+    loading,
+    error,
+    isConnectModalOpen,
+    setIsConnectModalOpen,
+    selectedBank,
+    setSelectedBank,
+    connecting,
+    consentStep,
+    popularBanks,
+    handleConnectBank,
+    handleDisconnect,
+    refetch
+  } = useBankAccounts();
 
-  const fetchAccounts = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getBankAccounts();
-      setAccounts(data);
-    } catch (err) {
-      console.error('Failed to fetch bank accounts', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) {
+    return <LoadingSpinner size="lg" message="Querying Account Aggregator framework..." />;
+  }
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const handleConnectBank = async () => {
-    setConnecting(true);
-    try {
-      await api.connectDemoBank(selectedBank, user?.phone || '9876543210');
-      setConsentStep(3);
-      fetchAccounts();
-      setTimeout(() => {
-        setIsConnectModalOpen(false);
-        setConsentStep(1);
-      }, 1600);
-    } catch (err) {
-      alert(err.message || 'Connection failed.');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async (id) => {
-    if (!window.confirm('Disconnect this bank account from Pennywise?')) return;
-    try {
-      await api.disconnectBank(id);
-      fetchAccounts();
-    } catch (err) {
-      alert(err.message || 'Failed to disconnect.');
-    }
-  };
+  const totalBankBalance = accounts.reduce((acc, curr) => acc + (curr.balance || 0), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl glass-panel relative overflow-hidden">
-        {/* Glow */}
-        <div className="absolute top-0 right-0 w-72 h-72 bg-[#7800B8]/20 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* ---------------- HEADER & ACTIONS ---------------- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#101536] border border-[#FF1493]/35 text-xs font-semibold text-[#FF69B4] mb-2">
-            <ShieldCheck size={14} className="text-[#FF1493]" />
-            <span>RBI Account Aggregator (AA) Framework</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             Connect Your Financial World
           </h1>
-          <p className="text-xs text-[#A5A5B8] mt-1">
-            Seamlessly synchronize your savings accounts, deposits, and transaction logs in a single unified ledger.
+          <p className="text-xs sm:text-sm text-[#A5A5B8] mt-1">
+            Authorized Account Aggregator framework integration with RBI-regulated financial information providers.
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setConsentStep(1);
-            setIsConnectModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink hover:opacity-95 transition-all"
-        >
-          <Plus size={16} />
-          <span>Link Bank Account</span>
-        </button>
+        <Button variant="primary" size="sm" onClick={() => setIsConnectModalOpen(true)} icon={Plus}>
+          Link Bank Account
+        </Button>
       </div>
 
-      {/* Security Guarantee Box */}
-      <div className="p-4 rounded-xl bg-[#080B24]/90 border border-emerald-500/25 flex items-start gap-3 text-xs">
-        <Lock size={18} className="text-emerald-400 shrink-0 mt-0.5" />
-        <div>
-          <p className="font-semibold text-white">Bank-Grade Encryption & Read-Only Protocol</p>
-          <p className="text-[#A5A5B8] text-[11px] mt-0.5 leading-relaxed">
-            Pennywise integrates through authorized Account Aggregator consent gates. We <b className="text-white">never</b> ask for, store, or have access to your Net Banking passwords, Debit Card PINs, or UPI credentials.
-          </p>
-        </div>
-      </div>
+      {error && <ErrorMessage message={error} onRetry={refetch} />}
 
-      {/* CONNECTED ACCOUNTS GRID */}
-      {loading ? (
-        <div className="p-12 text-center text-xs text-[#FF69B4] flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-[#FF1493] border-t-transparent rounded-full animate-spin" />
-          <span>Querying Account Aggregator nodes...</span>
-        </div>
-      ) : accounts.length === 0 ? (
-        <div className="p-12 text-center glass-panel rounded-2xl space-y-3">
-          <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 flex items-center justify-center text-gray-500">
-            <Building2 size={24} />
+      {/* ---------------- AGGREGATE STATS ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <Card hover>
+          <p className="text-xs font-semibold text-[#A5A5B8] uppercase">Aggregated Liquid Balance</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">
+            {formatINR(totalBankBalance)}
+          </h3>
+          <p className="text-xs text-[#A5A5B8] mt-2">Combined across connected institutions</p>
+        </Card>
+
+        <Card hover>
+          <p className="text-xs font-semibold text-[#A5A5B8] uppercase">Linked Bank Accounts</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-white mt-1">
+            {accounts.length}
+          </h3>
+          <p className="text-xs text-[#A5A5B8] mt-2">Active telemetry pipelines</p>
+        </Card>
+
+        <Card hover>
+          <p className="text-xs font-semibold text-[#A5A5B8] uppercase">Consent Security Mode</p>
+          <div className="flex items-center gap-2 mt-2">
+            <ShieldCheck size={24} className="text-[#FF1493]" />
+            <span className="text-base font-bold text-white">RBI Account Aggregator</span>
           </div>
-          <p className="text-sm font-semibold text-white">No Linked Bank Accounts</p>
-          <p className="text-xs text-[#A5A5B8] max-w-sm mx-auto">
-            Link your HDFC, SBI, ICICI or other bank to auto-sync transactions and balances.
-          </p>
-          <button
-            onClick={() => setIsConnectModalOpen(true)}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#FF1493] text-white shadow-glow-pink"
-          >
-            Link Demo Bank Account
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {accounts.map((acc) => (
-            <div
-              key={acc.id}
-              className="glass-panel glass-card-hover p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden group border border-[#FF1493]/30"
-            >
-              <div>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#35004F] to-[#7800B8] border border-[#FF69B4]/40 flex items-center justify-center text-2xl shadow-sm">
-                      🏦
-                    </div>
+          <p className="text-[11px] text-[#A5A5B8] mt-2">Zero credential storage • Read-only telemetry</p>
+        </Card>
+      </div>
+
+      {/* ---------------- LINKED ACCOUNTS LIST ---------------- */}
+      <div>
+        <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+          <Building2 size={18} className="text-[#FF69B4]" />
+          Active Account Aggregator Connections
+        </h3>
+
+        {accounts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {accounts.map((acc) => (
+              <Card key={acc.id} hover className="flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-white">{acc.bank_name}</h3>
-                      <p className="text-xs text-gray-400 font-mono">{acc.account_number_masked}</p>
+                      <h4 className="text-base font-bold text-white">{acc.bank_name}</h4>
+                      <p className="text-xs text-[#A5A5B8] mt-0.5">{acc.account_type}</p>
+                    </div>
+
+                    <Badge variant="success" size="sm">
+                      Connected
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 p-3 rounded-xl bg-[#050509]/60 border border-white/5 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-[#A5A5B8]">
+                      <span>Account Number:</span>
+                      <span className="font-mono text-white font-semibold">{acc.account_number_masked}</span>
+                    </div>
+                    <div className="flex justify-between text-[#A5A5B8]">
+                      <span>IFSC Code:</span>
+                      <span className="font-mono text-white font-semibold">{acc.ifsc}</span>
                     </div>
                   </div>
 
-                  <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Connected
+                  <div className="mt-4 flex items-baseline justify-between text-xs">
+                    <span className="text-[#A5A5B8]">Available Balance:</span>
+                    <span className="text-xl font-black text-white font-mono">
+                      {formatINR(acc.balance)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-[#A5A5B8]">
+                  <span className="flex items-center gap-1 text-[11px]">
+                    <Lock size={12} className="text-[#FF1493]" /> End-to-end encrypted
                   </span>
+                  <button
+                    onClick={() => handleDisconnect(acc.id)}
+                    className="text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1"
+                  >
+                    <Unlink size={13} /> Disconnect
+                  </button>
                 </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Building2}
+            title="No Bank Accounts Connected"
+            description="Link your bank accounts via our simulated RBI Account Aggregator flow to view aggregate balance."
+            actionLabel="Connect Bank Account"
+            onAction={() => setIsConnectModalOpen(true)}
+            className="py-16"
+          />
+        )}
+      </div>
 
-                <div className="p-3.5 rounded-xl bg-[#050509]/70 border border-white/5 space-y-1 mb-4">
-                  <span className="text-[11px] text-gray-400">Available Liquid Balance</span>
-                  <p className="text-2xl font-black text-white">{formatINR(acc.balance)}</p>
-                  <p className="text-[10px] text-[#A5A5B8]">IFSC: <span className="font-mono text-gray-300">{acc.ifsc}</span></p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-white/10 text-xs">
-                <span className="text-[10px] text-gray-400">Sync: Real-time (AA)</span>
-                <button
-                  onClick={() => handleDisconnect(acc.id)}
-                  className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1"
-                >
-                  <Unlink size={13} />
-                  <span>Disconnect</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* CONNECT BANK MODAL */}
+      {/* ---------------- CONNECT BANK MODAL ---------------- */}
       <Modal
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         title="Link Account via Account Aggregator"
       >
-        {consentStep === 1 && (
-          <div className="space-y-4 text-xs">
-            <p className="text-gray-300">
-              Select your primary Indian banking institution to initiate secure, authorized read-only synchronization.
-            </p>
+        <div className="space-y-4 pt-1">
+          {consentStep === 1 && (
+            <>
+              <p className="text-xs text-[#A5A5B8] leading-relaxed">
+                Select your bank to initiate an authorized Account Aggregator discovery flow. No banking passwords or UPI PINs are ever required.
+              </p>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              {POPULAR_BANKS.map((bank) => (
-                <button
-                  key={bank.id}
-                  type="button"
-                  onClick={() => setSelectedBank(bank.name)}
-                  className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${selectedBank === bank.name
-                    ? 'bg-[#7800B8]/30 border-[#FF1493] shadow-glow-pink'
-                    : 'bg-[#050509] border-white/10 hover:border-white/30'
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                {popularBanks.map((bank) => (
+                  <button
+                    key={bank.id}
+                    type="button"
+                    onClick={() => setSelectedBank(bank.name)}
+                    className={`p-3.5 rounded-xl border text-left transition-all ${
+                      selectedBank === bank.name
+                        ? 'border-[#FF1493] bg-[#7800B8]/30 shadow-glow-pink'
+                        : 'border-white/10 bg-[#080B24] hover:bg-white/5'
                     }`}
-                >
-                  <span className="text-xl">{bank.logo}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-white text-xs truncate">{bank.name}</p>
-                    <span className="text-[10px] text-[#FF69B4]">{bank.badge}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="p-3 rounded-xl bg-[#050509] border border-white/10 text-[11px] text-gray-400 space-y-1">
-              <p>• Mobile registered with bank: <b className="text-white">+91 {user?.phone}</b></p>
-              <p>• Consent handle: <b className="text-white">{user?.first_name?.toLowerCase()}@onemoney</b></p>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setIsConnectModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-gray-400 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => setConsentStep(2)}
-                className="px-5 py-2 rounded-xl font-bold bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink"
-              >
-                Proceed to Consent
-              </button>
-            </div>
-          </div>
-        )}
-
-        {consentStep === 2 && (
-          <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-[#050509] border border-[#FF1493]/40 text-center space-y-2">
-              <div className="w-12 h-12 mx-auto rounded-full bg-[#FF1493]/20 flex items-center justify-center text-[#FF1493]">
-                <ShieldCheck size={24} />
+                  >
+                    <span className="text-2xl block mb-1">{bank.logo}</span>
+                    <span className="text-xs font-bold text-white block">{bank.name}</span>
+                    <span className="text-[10px] text-[#A5A5B8]">{bank.badge}</span>
+                  </button>
+                ))}
               </div>
-              <h4 className="font-bold text-white text-sm">Account Aggregator Consent Request</h4>
-              <p className="text-[#A5A5B8] text-xs">
-                {selectedBank} is requesting your one-time digital consent to share account statements with Pennywise for financial tracking.
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <Button variant="ghost" onClick={() => setIsConnectModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleConnectBank}
+                  isLoading={connecting}
+                  icon={ShieldCheck}
+                >
+                  Authorize & Link
+                </Button>
+              </div>
+            </>
+          )}
+
+          {consentStep === 3 && (
+            <div className="py-6 text-center space-y-3">
+              <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
+              <h4 className="text-base font-bold text-white">Bank Account Linked Successfully</h4>
+              <p className="text-xs text-[#A5A5B8]">
+                Account Aggregator consent token registered. Balance synchronized.
               </p>
             </div>
-
-            <div className="space-y-1.5 text-gray-300 text-[11px]">
-              <p>✓ <b>Purpose:</b> Personal Finance Ledger & Expense Analytics</p>
-              <p>✓ <b>Data Access:</b> Read-only account balances and transaction logs</p>
-              <p>✓ <b>Validity:</b> Revocable anytime from settings</p>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setConsentStep(1)}
-                className="px-4 py-2 rounded-xl text-gray-400 hover:text-white"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={handleConnectBank}
-                disabled={connecting}
-                className="px-5 py-2 rounded-xl font-bold bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink flex items-center gap-2"
-              >
-                {connecting ? 'Authenticating with Bank...' : 'Authorize & Link'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {consentStep === 3 && (
-          <div className="py-8 text-center space-y-3">
-            <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shadow-lg">
-              <CheckCircle2 size={32} />
-            </div>
-            <h4 className="font-bold text-white text-base">Account Successfully Linked!</h4>
-            <p className="text-xs text-gray-400">
-              Synced {selectedBank} balance and synced latest transactions into your ledger.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </Modal>
     </div>
   );
 }
-

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api, setAuthToken, getAuthToken } from '../api/client';
+import { authApi } from '../api/auth.api';
+import { setAuthToken, getAuthToken } from '../api/httpClient';
 
 const AuthContext = createContext(null);
 
@@ -14,7 +15,7 @@ export function AuthProvider({ children }) {
       return;
     }
     try {
-      const userData = await api.getMe();
+      const userData = await authApi.getMe();
       setUser(userData);
     } catch (err) {
       console.error('Session expired or invalid', err);
@@ -27,17 +28,25 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     initAuth();
+
+    // Auto-logout when httpClient catches 401 Unauthorized
+    const handleUnauthorized = () => {
+      setAuthToken(null);
+      setUser(null);
+    };
+    window.addEventListener('pennywise:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('pennywise:unauthorized', handleUnauthorized);
   }, []);
 
   const login = async (phone, password) => {
-    const res = await api.login(phone, password);
+    const res = await authApi.login(phone, password);
     setAuthToken(res.access_token);
     setUser(res.user);
     return res;
   };
 
   const register = async (payload) => {
-    return await api.register(payload);
+    return await authApi.register(payload);
   };
 
   const logout = () => {
@@ -69,4 +78,3 @@ export function useAuth() {
   }
   return context;
 }
-

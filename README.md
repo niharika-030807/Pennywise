@@ -2,7 +2,119 @@
 
 ### Make Every Rupee Count.
 
-A complete, full-stack personal finance management and wealth intelligence platform designed with a futuristic fintech aesthetic, inspired by flowing gradient waves and dynamic interconnected network visualizations.
+A modern, production-grade personal finance management and wealth intelligence platform designed with a futuristic fintech aesthetic, inspired by flowing gradient waves and dynamic interconnected network visualizations.
+
+---
+
+## 🏗️ Architectural Overview & Clean Folder Structure
+
+Pennywise is structured following clean-code principles, layered architecture, strict separation of concerns, centralized state management, and typed, versioned API pipelines.
+
+```text
+Pennywise/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── deps.py                      # Reusable FastAPI dependencies (DB session, JWT auth)
+│   │   │   └── v1/
+│   │   │       ├── router.py                # Aggregated API v1 router
+│   │   │       └── endpoints/               # Lean HTTP controllers
+│   │   │           ├── auth.py              # Authentication, OTP, Registration, Login
+│   │   │           ├── dashboard.py         # Main dashboard KPI telemetry
+│   │   │           ├── transactions.py      # Expense & Income ledger CRUD, CSV import/export
+│   │   │           ├── budgets.py           # Budget cap & category limit endpoints
+│   │   │           ├── goals.py             # Savings goals & deposit endpoints
+│   │   │           ├── bank.py              # RBI Account Aggregator connection endpoints
+│   │   │           ├── wrap.py              # Monthly Money Wrap summary endpoints
+│   │   │           └── assistant.py         # AI Companion & chat history endpoints
+│   │   ├── core/
+│   │   │   ├── config.py                    # Typed Settings loaded from environment variables
+│   │   │   ├── database.py                  # SQLAlchemy engine, SessionLocal, declarative Base
+│   │   │   ├── security.py                  # PBKDF2-HMAC-SHA256 password hashing & JWT encoding
+│   │   │   └── exceptions.py                # Custom exceptions & centralized error handlers
+│   │   ├── models/
+│   │   │   ├── entities.py                  # User, Transaction, Budget, Goal, Bank, Chat, OTP
+│   │   │   └── __init__.py
+│   │   ├── schemas/
+│   │   │   ├── auth.py, transaction.py, budget.py, goal.py, bank.py, wrap.py, assistant.py
+│   │   │   └── __init__.py                  # Typed Pydantic request/response schemas
+│   │   ├── services/                        # Decoupled business logic layer
+│   │   │   ├── auth_service.py              # OTP generation, user validation & session issuing
+│   │   │   ├── transaction_service.py       # Ledger operations, search, filters & CSV parser
+│   │   │   ├── analytics_service.py         # Shared calculation engine (totals, metrics, trends)
+│   │   │   ├── budget_service.py            # Budget evaluation & overspend warnings
+│   │   │   ├── goal_service.py              # Savings milestone tracking & SIP calculation
+│   │   │   ├── bank_service.py              # Account Aggregator bank integration logic
+│   │   │   ├── wrap_service.py              # Spotify-style monthly wrap analysis & persona badge
+│   │   │   ├── assistant_service.py         # Gemini AI with deterministic fintech fallback engine
+│   │   │   └── sms_service.py               # Fast2SMS and Twilio telecom gateway integration
+│   │   └── main.py                          # App entry point, CORS, exception handlers & routing
+│   ├── .env.example                         # Environment configuration template
+│   ├── requirements.txt
+│   └── test_api.py                          # 13-suite automated fintech test runner
+│
+└── frontend/
+    ├── src/
+    │   ├── api/                             # Scalable API communication layer
+    │   │   ├── httpClient.js                # Base client with auth interceptor & error formatting
+    │   │   ├── auth.api.js                  # Authentication endpoints
+    │   │   ├── transactions.api.js          # Transaction queries, mutations, CSV import
+    │   │   ├── dashboard.api.js             # Telemetry & KPI queries
+    │   │   ├── budgets.api.js               # Budget management endpoints
+    │   │   ├── goals.api.js                 # Savings goals endpoints
+    │   │   ├── bank.api.js                  # Bank connection endpoints
+    │   │   ├── wrap.api.js                  # Monthly wrap endpoints
+    │   │   ├── assistant.api.js             # AI Companion endpoints
+    │   │   └── index.js                     # Unified API export
+    │   ├── components/
+    │   │   ├── common/                      # Reusable UI primitives
+    │   │   │   ├── Button.jsx               # Variant-aware button with loading spinner
+    │   │   │   ├── Input.jsx                # Form input with icon, label, and validation error
+    │   │   │   ├── Select.jsx               # Styled dropdown selector
+    │   │   │   ├── Card.jsx                 # Glassmorphic card container with hover effect
+    │   │   │   ├── StatCard.jsx             # Metric stat card with trend indicator and glow
+    │   │   │   ├── Badge.jsx                # Category and status indicator pill
+    │   │   │   ├── EmptyState.jsx           # Clean zero-data placeholder illustration
+    │   │   │   ├── LoadingSpinner.jsx       # Glowing neon loader
+    │   │   │   ├── ErrorMessage.jsx         # Retryable error alert box
+    │   │   │   └── ErrorBoundary.jsx        # Catch-all failsafe UI boundary
+    │   │   ├── layout/                      # Application frame
+    │   │   │   ├── AppLayout.jsx            # Layout wrapper (waves, sidebar, navbar)
+    │   │   │   ├── Navbar.jsx               # Header with mobile drawer & quick actions
+    │   │   │   ├── Sidebar.jsx              # Navigation drawer with brand identity
+    │   │   │   └── NetworkBackground.jsx    # Animated canvas particle nodes
+    │   │   └── modals/                      # Popups and dialogs
+    │   │       ├── Modal.jsx                # Accessible modal container with backdrop blur
+    │   │       └── TransactionModal.jsx     # Transaction create / edit dialog
+    │   ├── context/                         # Centralized reactive state management
+    │   │   ├── AuthContext.jsx              # Authentication state, login, logout, auto-expiry
+    │   │   └── FinanceContext.jsx           # Reactive store (transactions, overview, budgets, goals)
+    │   ├── hooks/                           # Decoupled business logic hooks
+    │   │   ├── useTransactions.js           # Search, filters, pagination, CSV export/import
+    │   │   ├── useDashboard.js              # Overview metrics, daily/weekly/monthly velocity
+    │   │   ├── useBudgets.js                # Budget status, limit modification & validation
+    │   │   ├── useGoals.js                  # Goals listing, creation, and deposits
+    │   │   ├── useMonthlyWrap.js            # Monthly recap generation & archive navigation
+    │   │   ├── useBankAccounts.js           # Account Aggregator bank discovery & sync
+    │   │   └── useAssistant.js              # Chat history, message dispatch, suggested prompts
+    │   ├── pages/                           # Pure UI presentation views
+    │   │   ├── AuthPage.jsx                 # Login, Sign Up, and Password Reset
+    │   │   ├── Dashboard.jsx                # Main financial dashboard
+    │   │   ├── Transactions.jsx             # Expense tracker & ledger
+    │   │   ├── BudgetPlanner.jsx            # Monthly budget planner
+    │   │   ├── MonthlyWrap.jsx              # Spotify-style Monthly Money Wrap
+    │   │   ├── FinancialInsights.jsx        # Predictive telemetry & forecasting
+    │   │   ├── SavingsGoals.jsx             # Target savings goals & deposits
+    │   │   ├── FinancialAssistant.jsx       # Pennywise Financial Companion AI
+    │   │   ├── BankAccounts.jsx             # RBI Account Aggregator connection
+    │   │   └── Settings.jsx                 # Profile & security settings
+    │   └── utils/
+    │       ├── constants.js                 # Categories, colors, payment methods, nav tabs
+    │       ├── formatters.js                # Indian Rupee (₹), compact notation, dates
+    │       └── validation.js                # Phone, email, password strength validators
+    ├── .env.example                         # Frontend environment variables template
+    └── vite.config.js                       # Vite bundler configuration
+```
 
 ---
 
@@ -23,111 +135,71 @@ Pennywise combines the two visual design references into a cohesive, glassmorphi
 
 ---
 
-## 🌟 Core Features & Modules
+## ⚙️ Environment Variables
 
-### 1. Authentication System
-* **New User Sign-Up**: First Name, Last Name, Phone Number (+91), Email, Password with visibility toggle and real-time password strength meter, T&C agreement.
-* **6-Digit OTP Verification**: Real SMS dispatch when Twilio is configured, with a dedicated **Simulated Test OTP Mode banner** for local development.
-* **Existing User Login**: Authenticates via registered mobile number and securely hashed password.
-* **Forgot Password Recovery Flow**: 3-step OTP-verified password reset without requiring old password.
-* **Security**: PBKDF2-HMAC-SHA256 password hashing with unique 16-byte salt, JWT tokens, and user-isolated database records.
+### Backend Configuration (`backend/.env`)
+Create a file named `.env` in `backend/` based on `backend/.env.example`:
 
-### 2. Bank Account Connection ("Connect Your Financial World")
-* **RBI Account Aggregator Framework Simulation**: Authentic digital consent workflow (Setu / Sahamati / OneMoney pattern).
-* Supported Indian Banks: HDFC Bank, State Bank of India, ICICI Bank, Axis Bank, Kotak Mahindra Bank, and Punjab National Bank.
-* Displays masked account number, IFSC code, live account balance, and auto-syncs realistic transactions into ledger.
-* Strict security posture: never collects passwords, ATM PINs, or UPI PINs.
+```env
+# Application Settings
+ENVIRONMENT=development
+DEBUG=true
+SECRET_KEY=pennywise_production_super_secret_jwt_key_2026
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
-### 3. Main Financial Dashboard
-* Personalized greeting: `Welcome back, [First Name]!`
-* **Financial Overview Cards**: Total Balance, Monthly Inflow, Monthly Outflow, and Net Monthly Savings with monthly % comparison badges.
-* **Expense Velocity View**: Interactive toggle between Daily, Weekly, and Monthly spend distributions.
-* **Income vs Expenses Line/Area Chart**: 6-month historical cashflow velocity using Recharts.
-* **Spending Categories Donut Chart**: Visual sector breakdown (Groceries, Shopping, Dining, Rent & Bills, Transport, etc.).
-* **Recent Transactions & Budget Progress**: Real-time progress bar with warning indicators.
+# Database
+DATABASE_URL=sqlite:///./pennywise.db
 
-### 4. Transactions & Expense Tracker
-* Full CRUD: Record, edit, and delete transactions.
-* Search and multi-criteria filters: search bar, category dropdown, transaction type (All, Expense, Income), and date range pickers.
-* **CSV Import & Export**: One-click import for bank statement CSV files and one-click export for auditing.
-* Indian Rupee (`₹`) formatting throughout.
+# Gemini AI (for Pennywise Financial Companion)
+GEMINI_API_KEY=your_gemini_api_key_here
 
-### 5. "Your Monthly Money Wrap" (Spotify-Wrapped for Money)
-* Comprehensive monthly visual debrief.
-* Total Income, Spent, and Savings with savings percentage.
-* Highest & Lowest spending categories.
-* Daily average spend & total transaction volume.
-* Month-over-month comparison with previous month.
-* **Personalized Financial Insights**: "You spent 18% more on shopping compared to last month", "You saved 32.5% of your monthly income".
-* **Financial Personality Badges**: *The Master Accumulator 🏆*, *The Balanced Strategist ⚖️*, *The Adaptive Builder 🛠️*.
-* Month/Year archive selector.
+# SMS Gateway (For Real Phone OTP Delivery)
+# Option 1: Fast2SMS (Recommended for Indian numbers +91)
+FAST2SMS_API_KEY=your_fast2sms_api_key_here
 
-### 6. "Pennywise Financial Companion" (AI Assistant)
-* Interactive dark glassmorphic chat interface with pink-purple neon accents.
-* Grounded in **actual user transaction data** from the database.
-* Answers complex financial questions:
-  * *"How much did I spend this month?"*
-  * *"Where am I spending the most?"*
-  * *"Can I afford a purchase of ₹5,000?"*
-  * *"How can I reduce my expenses?"*
-  * *"What should my budget be next month?"*
-* Powered by Google Gemini API (`gemini-3.8-flash`) with automatic fallback to an intelligent domain-specific financial reasoning engine.
+# Option 2: Twilio
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+```
 
-### 7. Budget Planner
-* Monthly spending limit controls.
-* Category-wise sub-budgets with real-time utilization progress bars.
-* Threshold alerts (>80% warning, 100% exceeded).
-* Actionable recommendations for the upcoming month.
+### Frontend Configuration (`frontend/.env`)
+Create a file named `.env` in `frontend/` based on `frontend/.env.example`:
 
-### 8. Savings Goals
-* Define milestones (Goal Title, Target Amount, Target Date, Category icon).
-* Deposit funds towards goals.
-* Auto-calculates the recommended monthly savings SIP required to achieve the goal on time.
-
-### 9. Modern Sidebar Navigation (10 Sections)
-1. Dashboard
-2. Transactions
-3. Budget Planner
-4. Monthly Wrap
-5. Financial Insights
-6. Savings Goals
-7. Financial Assistant
-8. Bank Accounts
-9. Settings
-10. Sign Out
+```env
+VITE_API_BASE_URL=/api
+```
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Running the Project
 
-### Option A: One-Click Desktop Launcher
-Double-click `start_pennywise.bat` in the project root. It will start both backend and frontend servers and open `http://localhost:5173` in your browser.
-
-### Option B: Manual Command Line Execution
-
-#### 1. Start the Backend API (FastAPI)
+### 1. Start Backend Server
 ```bash
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-* API Root: `http://127.0.0.1:8000`
-* Interactive OpenAPI Documentation: `http://127.0.0.1:8000/docs`
+* API Documentation: `http://127.0.0.1:8000/docs`
+* Health Check: `http://127.0.0.1:8000/health`
 
-#### 2. Start the Frontend Client (Vite + React)
+### 2. Start Frontend Development Server
 ```bash
 cd frontend
 npm run dev
 ```
-* Web App URL: `http://localhost:5173`
+* Application: `http://localhost:5173`
+
+### 3. Run Backend Test Suite
+```bash
+cd backend
+python test_api.py
+```
+* Runs all 13 end-to-end integration test suites across authentication, ledger, wrap, budgets, goals, bank sync, and AI companion.
 
 ---
 
-## 🧪 Automated End-to-End Verification
-
-A comprehensive 13-point test suite is included in `backend/test_api.py`. Run it anytime with:
-```bash
-cd backend
-python -u test_api.py
-```
-Validates OTP generation, registration, JWT login, dashboard calculations, transaction management, wrap generation, budget alerts, goal deposits, bank linking, and AI companion responses.
-
+## 🛡️ Security Best Practices
+* **Passwords**: Hashed with PBKDF2-HMAC-SHA256 (100,000 iterations + 16-byte random salt).
+* **Tokens**: Signed HS256 JWT tokens with auto-expiration and automatic client invalidation on 401.
+* **OTP Security**: 6-digit codes stored with cryptographic expiration; OTP codes are **never** leaked in client API responses.
+* **Bank Integration**: Simulated under the RBI Account Aggregator framework—never requests or stores passwords, ATM PINs, or UPI PINs.

@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   TrendingUp, 
   BrainCircuit, 
   Zap, 
-  Target, 
   Compass, 
-  Calendar,
-  AlertTriangle,
   Sparkles
 } from 'lucide-react';
 import { 
@@ -15,160 +12,123 @@ import {
   Line, 
   XAxis, 
   YAxis, 
-  Tooltip, 
-  BarChart, 
-  Bar 
+  Tooltip
 } from 'recharts';
-import { api } from '../api/client';
+import { useFinance } from '../context/FinanceContext';
 import { formatINR, formatINRCompact } from '../utils/formatters';
+import Card from '../components/common/Card';
+import StatCard from '../components/common/StatCard';
+import EmptyState from '../components/common/EmptyState';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 export default function FinancialInsights() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const res = await api.getDashboardOverview();
-        setData(res);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+  const { overview: data, isLoading: loading } = useFinance();
 
   if (loading && !data) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#FF1493] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs uppercase tracking-widest text-[#FF69B4] font-semibold">
-            Computing Predictive Telemetry...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner size="lg" message="Computing Predictive Telemetry..." />;
   }
 
-  // Predictive 30-day forecast simulation based on moving average
   const hasExpenseData = (data?.monthly_expense || 0) > 0;
   const avgMonthlyExpense = data?.monthly_expense || 0;
+
   const forecastTrend = hasExpenseData ? [
-    { day: 'Day 1-5', projected: Math.round(avgMonthlyExpense * 0.18), actual: Math.round(avgMonthlyExpense * 0.16) },
-    { day: 'Day 6-10', projected: Math.round(avgMonthlyExpense * 0.35), actual: Math.round(avgMonthlyExpense * 0.33) },
-    { day: 'Day 11-15', projected: Math.round(avgMonthlyExpense * 0.52), actual: Math.round(avgMonthlyExpense * 0.49) },
-    { day: 'Day 16-20', projected: Math.round(avgMonthlyExpense * 0.68), actual: Math.round(avgMonthlyExpense * 0.65) },
-    { day: 'Day 21-25', projected: Math.round(avgMonthlyExpense * 0.85), actual: null },
-    { day: 'Day 26-30', projected: Math.round(avgMonthlyExpense * 1.0), actual: null },
+    { period: 'Day 5', projectedSpend: Math.round(avgMonthlyExpense * 0.18) },
+    { period: 'Day 10', projectedSpend: Math.round(avgMonthlyExpense * 0.35) },
+    { period: 'Day 15', projectedSpend: Math.round(avgMonthlyExpense * 0.52) },
+    { period: 'Day 20', projectedSpend: Math.round(avgMonthlyExpense * 0.69) },
+    { period: 'Day 25', projectedSpend: Math.round(avgMonthlyExpense * 0.86) },
+    { period: 'Day 30', projectedSpend: Math.round(avgMonthlyExpense) },
   ] : [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl glass-panel">
-        <div>
-          <span className="text-xs uppercase tracking-widest text-[#FF69B4] font-bold">
-            Predictive AI & Statistical Modeling
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Financial Insights & Velocity
-          </h1>
-          <p className="text-xs text-[#A5A5B8] mt-1">
-            Machine learning projections, velocity curves, and behavioral spending anomalies.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#101536] border border-[#7800B8]/40 text-xs text-[#FF69B4]">
-          <BrainCircuit size={16} className="text-[#FF1493]" />
-          <span>ML Regression Active</span>
-        </div>
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* ---------------- HEADER ---------------- */}
+      <div className="pb-2 border-b border-white/10">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+          Predictive Financial Intelligence
+        </h1>
+        <p className="text-xs sm:text-sm text-[#A5A5B8] mt-1">
+          Forecasting curves, algorithmic burn-rate modeling, and anomaly detection.
+        </p>
       </div>
 
-      {/* 3 PREDICTIVE TILES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-5 rounded-2xl glass-panel relative overflow-hidden">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 font-semibold">Predicted Month-End Spend</span>
-            <Zap size={16} className="text-[#FF1493]" />
-          </div>
-          <p className="text-2xl font-black text-white">{formatINR(hasExpenseData ? data?.monthly_expense * 1.08 : 0)}</p>
-          <p className="text-[11px] text-[#A5A5B8] mt-1.5">
-            {hasExpenseData ? 'Projected based on your current 7-day velocity.' : 'Awaiting initial expense entries.'}
-          </p>
-        </div>
+      {/* ---------------- STAT CARDS ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <StatCard
+          title="Projected Month-End Outlay"
+          value={hasExpenseData ? avgMonthlyExpense : 0}
+          icon={BrainCircuit}
+          subtitle="Monte Carlo baseline projection"
+          color="from-[#7800B8] to-[#FF1493]"
+        />
 
-        <div className="p-5 rounded-2xl glass-panel relative overflow-hidden">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 font-semibold">Annualized Savings Trajectory</span>
-            <TrendingUp size={16} className="text-emerald-400" />
-          </div>
-          <p className="text-2xl font-black text-emerald-400">
-            {formatINR((data?.monthly_savings || 0) * 12)}
-          </p>
-          <p className="text-[11px] text-[#A5A5B8] mt-1.5">
-            {hasExpenseData ? 'If current net savings velocity is sustained over 12 months.' : 'Calculated automatically as income is logged.'}
-          </p>
-        </div>
+        <StatCard
+          title="Daily Burn Rate Cap"
+          value={hasExpenseData ? Math.round(avgMonthlyExpense / 30) : 0}
+          icon={Zap}
+          subtitle="Recommended maximum daily pace"
+          color="from-[#00E5FF] to-[#2979FF]"
+        />
 
-        <div className="p-5 rounded-2xl glass-panel relative overflow-hidden">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400 font-semibold">Burn Rate Health Score</span>
-            <Sparkles size={16} className="text-[#FF69B4]" />
-          </div>
-          <p className="text-2xl font-black text-[#FF69B4]">{hasExpenseData ? '88 / 100' : 'N/A'}</p>
-          <p className="text-[11px] text-emerald-400 mt-1.5">
-            {hasExpenseData ? 'Optimal • Capital burn well within income threshold.' : 'No data recorded yet.'}
-          </p>
-        </div>
+        <StatCard
+          title="Discretionary Cushion"
+          value={hasExpenseData ? Math.max(0, (data?.total_savings || 0)) : 0}
+          icon={Compass}
+          subtitle="Capital available for investment"
+          color="from-emerald-500 to-teal-400"
+        />
       </div>
 
-      {/* PREDICTIVE CHART */}
-      <div className="glass-panel p-6 rounded-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+      {/* ---------------- FORECAST CHART ---------------- */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-base font-bold text-white">Cumulative Monthly Burn Forecast</h3>
-            <p className="text-xs text-[#A5A5B8]">Actual spend vs. Linear Regression benchmark</p>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <TrendingUp size={18} className="text-[#FF1493]" />
+              Projected 30-Day Expense Trajectory
+            </h3>
+            <p className="text-xs text-[#A5A5B8]">Estimated accumulation curve based on transaction history</p>
           </div>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="flex items-center gap-1.5 text-[#FF1493]">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#FF1493]" /> Actual Spend
-            </span>
-            <span className="flex items-center gap-1.5 text-cyan-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" /> Projected Cap
-            </span>
-          </div>
+          <span className="text-[11px] font-semibold text-[#FF69B4] px-2.5 py-1 rounded-full bg-[#7800B8]/20 border border-[#FF1493]/30">
+            Algorithmic Projection
+          </span>
         </div>
 
-        {forecastTrend.length === 0 ? (
-          <div className="h-64 w-full flex flex-col items-center justify-center text-center p-6">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl mb-2 text-gray-500">
-              📈
-            </div>
-            <p className="text-xs font-semibold text-white">No Expense History for Forecasting</p>
-            <p className="text-[11px] text-[#A5A5B8] mt-0.5">Machine learning burn rate projections will activate once you record transactions.</p>
-          </div>
-        ) : (
-          <div className="h-64 w-full">
+        <div className="h-64 w-full">
+          {hasExpenseData ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={forecastTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="day" stroke="#A5A5B8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#A5A5B8" fontSize={11} tickLine={false} tickFormatter={(v) => formatINRCompact(v)} />
+              <LineChart data={forecastTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <XAxis dataKey="period" stroke="#606078" fontSize={11} />
+                <YAxis stroke="#606078" fontSize={11} tickFormatter={(v) => formatINRCompact(v)} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#080B24', borderColor: '#FF1493', borderRadius: '12px', fontSize: '12px' }}
+                  contentStyle={{
+                    backgroundColor: '#080B24',
+                    borderColor: 'rgba(255, 20, 147, 0.4)',
+                    borderRadius: '12px',
+                    fontSize: '12px'
+                  }}
                   formatter={(val) => [formatINR(val)]}
                 />
-                <Line type="monotone" dataKey="actual" stroke="#FF1493" strokeWidth={3} dot={{ r: 4, fill: '#FF1493' }} />
-                <Line type="monotone" dataKey="projected" stroke="#00F0FF" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="projectedSpend"
+                  name="Projected Outflow"
+                  stroke="#FF1493"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#FF1493' }}
+                />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-        )}
-      </div>
+          ) : (
+            <EmptyState
+              icon={Sparkles}
+              title="Awaiting Data Points"
+              description="Predictive modeling requires recorded transactions to calculate projections."
+              className="h-full border-0"
+            />
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
-

@@ -1,3 +1,6 @@
+/**
+ * Format numbers as standard Indian Rupee currency (e.g., ₹1,25,000.00).
+ */
 export function formatINR(amount) {
   if (amount === undefined || amount === null || isNaN(amount)) return '₹0.00';
   const num = Number(amount);
@@ -8,6 +11,9 @@ export function formatINR(amount) {
   }).format(num);
 }
 
+/**
+ * Format large numbers in compact Indian notation (e.g., ₹1.5 L, ₹25k).
+ */
 export function formatINRCompact(amount) {
   if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
   const num = Number(amount);
@@ -17,3 +23,27 @@ export function formatINRCompact(amount) {
   return `₹${num.toFixed(0)}`;
 }
 
+/**
+ * Format date string (YYYY-MM-DD) into readable Indian date.
+ */
+export function formatDate(dateString) {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).format(date);
+  } catch {
+    return dateString;
+  }
+}
+
+/**
+ * Format percentage.
+ */
+export function formatPercentage(val) {
+  if (val === undefined || val === null || isNaN(val)) return '0.0%';
+  return `${Number(val).toFixed(1)}%`;
+}

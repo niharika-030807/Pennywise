@@ -1,332 +1,243 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   PieChart,
   AlertTriangle,
   CheckCircle2,
-  Lightbulb,
   Sliders,
   Save,
   ShieldAlert,
   ArrowUpRight
 } from 'lucide-react';
-import { api } from '../api/client';
+import { useBudgets } from '../hooks/useBudgets';
 import { formatINR } from '../utils/formatters';
-
-const STANDARD_CATEGORIES = [
-  'Rent and Bills',
-  'Groceries',
-  'Shopping',
-  'Food and Dining',
-  'Transportation',
-  'Entertainment',
-  'Healthcare',
-  'Education',
-  'Personal Expenses',
-  'Other Expenses'
-];
+import { TRANSACTION_CATEGORIES } from '../utils/constants';
+import Button from '../components/common/Button';
+import Card from '../components/common/Card';
+import Input from '../components/common/Input';
+import Badge from '../components/common/Badge';
+import EmptyState from '../components/common/EmptyState';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 export default function BudgetPlanner() {
-  const [budgetData, setBudgetData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [monthlyLimitInput, setMonthlyLimitInput] = useState(0);
-  const [categoryInputs, setCategoryInputs] = useState({});
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const {
+    budgetData,
+    loading,
+    saving,
+    editMode,
+    setEditMode,
+    monthlyLimitInput,
+    setMonthlyLimitInput,
+    categoryInputs,
+    saveSuccess,
+    error,
+    handleSaveBudget,
+    handleCategoryChange,
+    refetch
+  } = useBudgets();
 
-  const fetchBudget = async () => {
-    try {
-      setLoading(true);
-      const res = await api.getCurrentBudget();
-      setBudgetData(res);
-      setMonthlyLimitInput(res.monthly_limit || 0);
-      const catMap = {};
-      STANDARD_CATEGORIES.forEach(cat => {
-        catMap[cat] = 0;
-      });
-      if (res.category_progress) {
-        res.category_progress.forEach(c => {
-          catMap[c.category] = c.limit;
-        });
-      }
-      setCategoryInputs(catMap);
-    } catch (err) {
-      console.error('Failed to fetch budget', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBudget();
-  }, []);
-
-  const handleSaveBudget = async () => {
-    setSaving(true);
-    setSaveSuccess(false);
-    try {
-      await api.saveBudget({
-        month: budgetData.month,
-        year: budgetData.year,
-        monthly_limit: Number(monthlyLimitInput),
-        category_budgets: categoryInputs
-      });
-      setSaveSuccess(true);
-      setEditMode(false);
-      fetchBudget();
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
-      alert(err.message || 'Failed to update budget.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading && !budgetData) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#FF1493] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs uppercase tracking-widest text-[#FF69B4] font-semibold">
-            Loading Budget Architecture...
-          </p>
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <LoadingSpinner size="lg" message="Loading budget calculations..." />;
   }
 
-  const { monthly_limit, total_spent, remaining, progress_percentage, category_progress, alerts, recommendations } = budgetData;
+  const {
+    has_budget = false,
+    monthly_limit = 0,
+    total_spent = 0,
+    remaining = 0,
+    progress_percentage = 0,
+    category_progress = [],
+    alerts = [],
+    recommendations = []
+  } = budgetData || {};
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl glass-panel">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* ---------------- HEADER & MODE SWITCHER ---------------- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
         <div>
-          <span className="text-xs uppercase tracking-widest text-[#FF69B4] font-bold">
-            Disciplined Capital Allocation
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             Monthly Budget Planner
           </h1>
-          <p className="text-xs text-[#A5A5B8] mt-1">
-            Establish category limits, avoid overdrafts, and receive real-time threshold alerts.
+          <p className="text-xs sm:text-sm text-[#A5A5B8] mt-1">
+            Define monthly spending ceilings, track category utilization, and receive overspend warnings.
           </p>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2.5">
           {editMode ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setEditMode(false)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#A5A5B8] hover:text-white"
-              >
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setEditMode(false)} disabled={saving}>
                 Cancel
-              </button>
-              <button
-                onClick={handleSaveBudget}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7800B8] to-[#FF1493] text-white shadow-glow-pink hover:opacity-95"
-              >
-                <Save size={15} />
-                <span>{saving ? 'Saving...' : 'Apply Limits'}</span>
-              </button>
-            </div>
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleSaveBudget} isLoading={saving} icon={Save}>
+                Save Targets
+              </Button>
+            </>
           ) : (
-            <button
-              onClick={() => setEditMode(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#101536] border border-[#FF1493]/40 text-[#FF69B4] hover:bg-[#FF1493]/10 transition-colors"
-            >
-              <Sliders size={15} />
-              <span>Modify Budget Targets</span>
-            </button>
+            <Button variant="primary" size="sm" onClick={() => setEditMode(true)} icon={Sliders}>
+              {has_budget ? 'Modify Budget Targets' : 'Set Up Budget'}
+            </Button>
           )}
         </div>
       </div>
 
       {saveSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+        <div className="p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
           <CheckCircle2 size={16} />
-          <span>Budget limits updated successfully and synced with ledger!</span>
+          <span>Budget limits updated and synchronized successfully!</span>
         </div>
       )}
 
-      {/* OVERALL MONTHLY PROGRESS HERO CARD */}
-      <div className="p-6 rounded-2xl glass-panel-elevated relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-          <div>
-            <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
-              Current Month Total Spending Cap
-            </span>
-            {editMode ? (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-2xl font-bold text-[#FF1493]">₹</span>
-                <input
-                  type="number"
-                  placeholder="e.g. 50000"
-                  value={monthlyLimitInput}
-                  onChange={(e) => setMonthlyLimitInput(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-[#050509] border border-[#FF1493] text-xl font-bold text-white w-48 focus:outline-none"
-                />
-              </div>
-            ) : monthly_limit > 0 ? (
-              <h2 className="text-3xl font-black text-white mt-1">
-                {formatINR(monthly_limit)}
-              </h2>
-            ) : (
-              <div className="mt-1">
-                <p className="text-2xl font-bold text-gray-400">Not Set</p>
-                <p className="text-[11px] text-[#A5A5B8] mt-0.5">Click 'Modify Budget Targets' to establish your spending ceiling.</p>
-              </div>
-            )}
-          </div>
+      {error && <ErrorMessage message={error} onRetry={refetch} />}
 
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-xs text-gray-400">Total Spent</p>
-              <p className="text-xl font-bold text-white mt-0.5">{formatINR(total_spent)}</p>
-            </div>
-            <div className="h-10 w-px bg-white/10" />
-            <div>
-              <p className="text-xs text-[#FF69B4]">Remaining Buffer</p>
-              <p className="text-xl font-bold text-emerald-400 mt-0.5">{formatINR(remaining)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Big Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-gray-300">Budget Consumption</span>
-            <span className={progress_percentage >= 100 ? 'text-rose-400 font-bold' : 'text-[#FF69B4]'}>
-              {progress_percentage}% Used
-            </span>
-          </div>
-          <div className="w-full h-3.5 bg-[#050509] rounded-full overflow-hidden p-0.5 border border-white/15">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${progress_percentage >= 100
-                ? 'bg-rose-500 shadow-glow-pink'
-                : progress_percentage >= 80
-                  ? 'bg-amber-400'
-                  : 'bg-gradient-to-r from-[#7800B8] via-[#D900A8] to-[#FF1493]'
-                }`}
-              style={{ width: `${Math.min(100, progress_percentage)}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ALERTS SECTION */}
-      {alerts && alerts.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#FF69B4] flex items-center gap-1.5">
-            <ShieldAlert size={14} />
-            <span>Active Budget Warnings & Threshold Alerts</span>
+      {/* ---------------- BUDGET OVERVIEW METRICS ---------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <Card hover>
+          <p className="text-xs font-semibold text-[#A5A5B8] uppercase">Total Budget Cap</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-white mt-1">
+            {formatINR(monthly_limit)}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {alerts.map((alertText, i) => (
-              <div
-                key={i}
-                className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5"
-              >
-                <AlertTriangle size={16} className="shrink-0 text-amber-400 mt-0.5" />
-                <span className="leading-relaxed">{alertText}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+          <p className="text-xs text-[#A5A5B8] mt-2">Maximum planned monthly outlay</p>
+        </Card>
 
-      {/* CATEGORY-WISE BUDGETS */}
-      <div className="glass-panel p-6 rounded-2xl space-y-4">
-        <div>
-          <h3 className="text-base font-bold text-white">Category-Wise Spending Limits</h3>
-          <p className="text-xs text-[#A5A5B8]">Granular controls per consumption sector</p>
-        </div>
+        <Card hover>
+          <p className="text-xs font-semibold text-[#A5A5B8] uppercase">Total Outflow Spent</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-rose-400 mt-1">
+            {formatINR(total_spent)}
+          </h3>
+          <p className="text-xs text-[#A5A5B8] mt-2">{progress_percentage}% of total budget consumed</p>
+        </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {editMode ? (
-            STANDARD_CATEGORIES.map((catName) => (
-              <div
-                key={catName}
-                className="p-4 rounded-xl bg-[#050509]/60 border border-white/10 flex items-center justify-between text-xs"
-              >
-                <span className="font-semibold text-white">{catName}</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-gray-400 text-xs">Limit: ₹</span>
-                  <input
-                    type="number"
-                    value={categoryInputs[catName] !== undefined ? categoryInputs[catName] : 0}
-                    onChange={(e) => setCategoryInputs({
-                      ...categoryInputs,
-                      [catName]: Number(e.target.value)
-                    })}
-                    className="w-24 px-2 py-0.5 rounded bg-[#080B24] border border-[#FF1493]/50 text-white text-xs font-bold"
-                  />
-                </div>
-              </div>
-            ))
-          ) : (category_progress || []).length === 0 ? (
-            <div className="col-span-2 py-8 text-center space-y-2">
-              <p className="text-xs font-semibold text-white">No Category Budgets Set</p>
-              <p className="text-[11px] text-[#A5A5B8]">Click 'Modify Budget Targets' above to allocate limits for Groceries, Dining, Rent, and other sectors.</p>
-            </div>
-          ) : (
-            (category_progress || []).map((cat) => {
-              const isExceeded = cat.status === 'exceeded';
-              const isWarning = cat.status === 'warning';
-              return (
-                <div
-                  key={cat.category}
-                  className="p-4 rounded-xl bg-[#050509]/60 border border-white/10 space-y-2.5"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white">{cat.category}</span>
-                    <span className="text-[#A5A5B8]">
-                      Spent: <b className="text-white">{formatINR(cat.spent)}</b> / {formatINR(cat.limit)}
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${isExceeded ? 'bg-rose-500' : isWarning ? 'bg-amber-400' : 'bg-[#FF1493]'}`}
-                      style={{ width: `${Math.min(100, cat.percentage)}%` }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className={isExceeded ? 'text-rose-400 font-bold' : isWarning ? 'text-amber-400' : 'text-gray-400'}>
-                      {cat.percentage}% Utilized
-                    </span>
-                    <span className="text-emerald-400 font-medium">
-                      {formatINR(cat.remaining)} remaining
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <Card hover>
+          <p className="text-xs font-semibold text-[#A5A5B8] uppercase">Remaining Cushion</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">
+            {formatINR(remaining)}
+          </h3>
+          <p className="text-xs text-[#A5A5B8] mt-2">Available for remaining days</p>
+        </Card>
       </div>
 
-      {/* RECOMMENDATIONS FOR NEXT MONTH */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#7800B8]/20 to-[#FF1493]/10 border border-[#FF1493]/30">
-        <div className="flex items-center gap-2 mb-3">
-          <Lightbulb size={18} className="text-[#FF1493]" />
-          <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-            Recommendations for Next Month
-          </h4>
-        </div>
+      {/* ---------------- ALERTS & RECOMMENDATIONS ---------------- */}
+      {alerts.length > 0 && (
         <div className="space-y-2">
-          {(recommendations || []).map((rec, i) => (
-            <div key={i} className="flex items-start gap-2 text-xs text-gray-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF1493] mt-1.5 shrink-0" />
-              <span>{rec}</span>
+          {alerts.map((alert, idx) => (
+            <div
+              key={idx}
+              className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 text-xs sm:text-sm text-rose-300"
+            >
+              <ShieldAlert size={18} className="text-rose-400 shrink-0" />
+              <span>{alert}</span>
             </div>
           ))}
         </div>
-      </div>
+      )}
+
+      {/* ---------------- EDIT TARGETS FORM (IF EDIT MODE) ---------------- */}
+      {editMode && (
+        <Card className="border-[#FF1493]/40 shadow-glow-pink">
+          <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+            <Sliders size={18} className="text-[#FF1493]" />
+            Set Category Budget Limits
+          </h3>
+
+          <div className="space-y-4">
+            <div className="max-w-xs">
+              <Input
+                label="Overall Monthly Cap (₹)"
+                type="number"
+                value={monthlyLimitInput}
+                onChange={(e) => setMonthlyLimitInput(e.target.value)}
+                placeholder="50000"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              {TRANSACTION_CATEGORIES.map((cat) => (
+                <Input
+                  key={cat.id}
+                  label={`${cat.label} (₹)`}
+                  type="number"
+                  value={categoryInputs[cat.id] ?? 0}
+                  onChange={(e) => handleCategoryChange(cat.id, e.target.value)}
+                  placeholder="0"
+                />
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+              <Button variant="ghost" onClick={() => setEditMode(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleSaveBudget} isLoading={saving} icon={Save}>
+                Save Targets
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ---------------- CATEGORY PROGRESS BARS ---------------- */}
+      <Card>
+        <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+          <PieChart size={18} className="text-[#FF69B4]" />
+          Category Spending vs Budget Limits
+        </h3>
+
+        {category_progress.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {category_progress.map((item, idx) => (
+              <div key={idx} className="p-4 rounded-xl bg-[#050509]/60 border border-white/5 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-white">{item.category}</span>
+                  <span className="text-[#A5A5B8]">
+                    <span className="text-white font-mono">{formatINR(item.spent)}</span> / {formatINR(item.limit)}
+                  </span>
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-[#101536] overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 rounded-full ${
+                      item.percentage >= 100
+                        ? 'bg-rose-500 shadow-glow-pink'
+                        : item.percentage >= 80
+                        ? 'bg-amber-500'
+                        : 'bg-gradient-to-r from-[#7800B8] to-[#FF1493]'
+                    }`}
+                    style={{ width: `${Math.min(100, item.percentage)}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px]">
+                  <span
+                    className={
+                      item.percentage >= 100
+                        ? 'text-rose-400 font-bold'
+                        : item.percentage >= 80
+                        ? 'text-amber-400 font-medium'
+                        : 'text-emerald-400'
+                    }
+                  >
+                    {item.percentage}% used
+                  </span>
+                  <span className="text-[#A5A5B8]">
+                    {item.remaining > 0 ? `${formatINR(item.remaining)} left` : 'Exceeded'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No Category Limits Set"
+            description="Configure category budgets to see real-time progress bars and alerts."
+            actionLabel="Configure Budget"
+            onAction={() => setEditMode(true)}
+            className="py-12 border-0"
+          />
+        )}
+      </Card>
     </div>
   );
 }
-

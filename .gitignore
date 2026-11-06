@@ -19,6 +19,9 @@ backend/*.db
 venv/
 env/
 .env
+backend/.env
+frontend/.env
+*.env.local
 
 # Logs and OS files
 *.log
